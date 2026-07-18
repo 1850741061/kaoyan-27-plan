@@ -306,21 +306,25 @@
       const saved = JSON.parse(currentRaw || legacyRaw);
       if (!saved || typeof saved !== "object") return structuredClone(defaultState);
       const migratingLegacy = !currentRaw && Boolean(legacyRaw);
-      return {
-        ...structuredClone(defaultState),
-        ...saved,
-        planEndDate: currentRaw ? (saved.planEndDate || DEFAULT_PLAN_END) : DEFAULT_PLAN_END,
-        progress: { ...defaultState.progress, ...(saved.progress || {}) },
-        review: { ...defaultState.review, ...(saved.review || {}) },
-        tasks: Array.isArray(saved.tasks) ? (migratingLegacy ? saved.tasks.filter(task => !task.generated) : saved.tasks) : [],
-        generatedDates: migratingLegacy ? [] : (Array.isArray(saved.generatedDates) ? saved.generatedDates : []),
-        planIntensityByDate: migratingLegacy ? {} : (saved.planIntensityByDate || {}),
-        weekPlan: saved.weekPlan || {},
-        studyLog: saved.studyLog || {}
-      };
+      return normalizeState(saved, migratingLegacy);
     } catch {
       return structuredClone(defaultState);
     }
+  }
+
+  function normalizeState(saved, migratingLegacy = false) {
+    return {
+      ...structuredClone(defaultState),
+      ...saved,
+      planEndDate: migratingLegacy ? DEFAULT_PLAN_END : (saved.planEndDate || DEFAULT_PLAN_END),
+      progress: { ...defaultState.progress, ...(saved.progress || {}) },
+      review: { ...defaultState.review, ...(saved.review || {}) },
+      tasks: Array.isArray(saved.tasks) ? (migratingLegacy ? saved.tasks.filter(task => !task.generated) : saved.tasks) : [],
+      generatedDates: migratingLegacy ? [] : (Array.isArray(saved.generatedDates) ? saved.generatedDates : []),
+      planIntensityByDate: migratingLegacy ? {} : (saved.planIntensityByDate || {}),
+      weekPlan: saved.weekPlan || {},
+      studyLog: saved.studyLog || {}
+    };
   }
 
   function saveState() {
@@ -328,10 +332,35 @@
     saveIndicator?.classList.add("saving");
     if (saveIndicator) saveIndicator.lastChild.textContent = " 保存中…";
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    const cloudWillHandle = Boolean(window.KaoyanCloud?.queueSave?.(structuredClone(state)));
     window.setTimeout(() => {
+      if (cloudWillHandle || document.body.classList.contains("cloud-locked")) return;
       saveIndicator?.classList.remove("saving");
       if (saveIndicator) saveIndicator.lastChild.textContent = " 已存于本机";
     }, 380);
+  }
+
+  function replaceStateFromCloud(nextState) {
+    if (!nextState || typeof nextState !== "object" || Array.isArray(nextState)) {
+      throw new TypeError("云端计划数据格式无效");
+    }
+    state = normalizeState(nextState);
+    selectedDateISO = clampPlanDate(selectedDateISO);
+    expandedTaskId = null;
+    editingTaskId = null;
+    ensureFullPlan();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    renderDates();
+    renderCountdown();
+    renderAgenda();
+    renderCalendar();
+    renderPhase(phaseIndexForDate(today));
+    renderProgressControls();
+    renderWeekTable();
+    renderReview();
+    updateAllStats();
+    updatePageProgress();
+    window.requestAnimationFrame(() => scrollToCalendarDate(selectedDateISO, "auto"));
   }
 
   function toISODate(date) {
@@ -1414,4 +1443,10 @@
     }, { rootMargin: "-20% 0px -65%", threshold: [0, 0.15, 0.4] });
     sections.forEach(section => observer.observe(section));
   }
+
+  window.KaoyanPlanner = Object.freeze({
+    getState: () => structuredClone(state),
+    replaceState: replaceStateFromCloud,
+    storageKey: STORAGE_KEY
+  });
 })();

@@ -12,11 +12,44 @@
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='29' fill='%23d84b35'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-family='monospace' font-size='23' font-weight='700' fill='%23f8f4ea'%3E27%3C/text%3E%3C/svg%3E" />
     <link rel="stylesheet" href="styles.css" />
   </head>
-  <body>
+  <body class="cloud-locked">
     <div class="paper-grain" aria-hidden="true"></div>
     <div class="page-progress" id="pageProgress" aria-hidden="true"></div>
 
-    <header class="site-header">
+    <section class="cloud-gate" id="cloudGate" aria-labelledby="cloudGateTitle">
+      <div class="cloud-gate-grid" aria-hidden="true"></div>
+      <article class="cloud-login-card">
+        <div class="cloud-login-mark" aria-hidden="true"><span>27</span><i></i></div>
+        <div class="cloud-login-copy">
+          <p>PRIVATE FIELD DESK / 私人云端</p>
+          <h1 id="cloudGateTitle">登录后，继续你的岸线。</h1>
+          <p>同一账号在电脑、手机和平板读取同一份计划。密码仅交给 Supabase，不会写入网页或 GitHub。</p>
+        </div>
+        <form class="cloud-login-form" id="cloudLoginForm">
+          <label>
+            <span>登录邮箱</span>
+            <input id="cloudEmail" name="email" type="email" autocomplete="username" required placeholder="name@example.com" />
+          </label>
+          <label>
+            <span>密码</span>
+            <input id="cloudPassword" name="password" type="password" autocomplete="current-password" required minlength="6" placeholder="输入 Supabase 登录密码" />
+          </label>
+          <button class="button button-primary full-button" id="cloudLoginButton" type="submit">进入作战手册</button>
+        </form>
+        <div class="cloud-conflict" id="cloudConflict" hidden>
+          <strong>检测到两份不同进度</strong>
+          <p>云端和本机都发生过修改。选择要保留的一份，另一份不会被静默覆盖。</p>
+          <div>
+            <button type="button" id="useCloudButton">使用云端</button>
+            <button type="button" id="useLocalButton">保留本机并上传</button>
+          </div>
+        </div>
+        <p class="cloud-login-message" id="cloudLoginMessage" role="status" aria-live="polite">正在检查登录状态……</p>
+        <footer><i></i><span>仅提供登录，不开放网页注册</span><b>SUPABASE · RLS</b></footer>
+      </article>
+    </section>
+
+    <header class="site-header" inert aria-hidden="true">
       <a class="brand" href="#top" aria-label="返回顶部">
         <span class="brand-seal">27</span>
         <span class="brand-copy">
@@ -25,7 +58,7 @@
         </span>
       </a>
       <div class="header-meta">
-        <span class="save-state" id="saveState"><i></i> 已存于本机</span>
+        <span class="save-state" id="saveState"><i></i> 等待云端</span>
         <span class="header-date" id="headerDate"></span>
         <button class="icon-button" id="openSettings" type="button" aria-label="打开设置">
           <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -36,7 +69,7 @@
       </div>
     </header>
 
-    <main id="top">
+    <main id="top" inert aria-hidden="true">
       <section class="hero shell" aria-labelledby="hero-title">
         <div class="hero-copy reveal">
           <p class="kicker"><span>MASTER PLAN</span> / 2027</p>
@@ -373,13 +406,13 @@
       </section>
     </main>
 
-    <footer class="site-footer">
+    <footer class="site-footer" inert aria-hidden="true">
       <div class="shell">
         <div>
           <span class="brand-seal small-seal">27</span>
           <p>计划服务于执行，执行服务于上岸。</p>
         </div>
-        <p>数据仅保存在当前浏览器 · <button id="exportData" type="button">导出备份</button></p>
+        <p>本机离线缓存 + Supabase 私人云同步 · <button id="exportData" type="button">导出备份</button></p>
       </div>
     </footer>
 
@@ -437,11 +470,28 @@
           <i>17—19</i>
           <p><strong>运动时间已锁定</strong><span>所有强度下都会保留，不参与压缩。</span></p>
         </div>
+        <div class="cloud-settings-card">
+          <div>
+            <span>CLOUD ACCOUNT</span>
+            <strong id="cloudAccountEmail">尚未登录</strong>
+            <small id="cloudSettingsStatus">登录后自动同步全部计划</small>
+          </div>
+          <div>
+            <button type="button" id="cloudSyncNow">立即同步</button>
+            <button type="button" id="cloudSignOut">退出登录</button>
+          </div>
+        </div>
         <button class="button button-primary full-button" value="default" type="submit">保存设置</button>
       </form>
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script
+      src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.7/dist/umd/supabase.min.js"
+      integrity="sha384-BmlQlKlDvXvKoxkn5OQuUo/aJQCTXeB+Kls6EccBmG4Kf8AXvp89RtO9MtPxP/r5"
+      crossorigin="anonymous"
+    ></script>
     <script src="app.js"></script>
+    <script src="cloud-sync.js"></script>
   </body>
 </html>
