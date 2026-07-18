@@ -1,0 +1,10 @@
+{
+  "name": "shoreline-kaoyan-27-plan",
+  "version": "3.0.0",
+  "private": true,
+  "description": "岸线 · 27 考研作战手册",
+  "scripts": {
+    "check": "node --check app.js && node --check cloud-sync.js",
+    "test": "node tests/cloud-sync-race.cjs"
+  }
+}

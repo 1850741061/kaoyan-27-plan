@@ -3,12 +3,17 @@
 
   const STORAGE_KEY = "shoreline-kaoyan-27-v2";
   const LEGACY_STORAGE_KEY = "shoreline-kaoyan-27-v1";
+  const SCHEMA_VERSION = 3;
   const PLAN_START = "2026-07-18";
   const DEFAULT_PLAN_END = "2026-11-15";
+  const MAX_PLAN_END = "2026-12-31";
   const FOCUS_SECONDS = 50 * 60;
+  const VALID_SUBJECTS = new Set(["math", "english", "cs", "sport", "review", "admin"]);
+  const VALID_INTENSITIES = new Set(["light", "standard", "sprint"]);
+  const CONFLICT_BACKUP_PREFIX = "shoreline-kaoyan-conflict-";
 
   const subjectMeta = {
-    math: { label: "数学一", code: "MATH Ⅰ", color: "#d84b35" },
+    math: { label: "数学一", code: "MATH Ⅰ", color: "#b43d2b" },
     english: { label: "英语一", code: "ENGLISH Ⅰ", color: "#b98217" },
     cs: { label: "408", code: "CS 408", color: "#4d839b" },
     sport: { label: "运动", code: "MOVE", color: "#56796e" },
@@ -161,69 +166,13 @@
     }
   ];
 
-  const weekContents = {
-    morning: [
-      ["math", "高数第十一章收尾 + 例题回炉"],
-      ["math", "线代启动：行列式与矩阵"],
-      ["math", "高数薄弱题型集中突破"],
-      ["math", "线代：方程组与秩"],
-      ["math", "高数 / 线代混合训练"],
-      ["math", "数学周测 + 完整订正"],
-      ["review", "本周数学错题回做 / 半休"]
-    ],
-    afternoon: [
-      ["cs", "计组第 4 章：概念 + 选择题"],
-      ["cs", "计组后续章节推进"],
-      ["cs", "数据结构算法手写 + 回顾"],
-      ["cs", "计组计算题专项"],
-      ["cs", "计组新课 + 章节框架"],
-      ["cs", "408 周测 + 漏洞定位"],
-      ["review", "下周排程 / 资料整理"]
-    ],
-    english: [
-      ["english", "单词复习 + 长难句 2 句"],
-      ["english", "阅读精读 1 篇"],
-      ["english", "单词 + 翻译拆句"],
-      ["english", "阅读精读 1 篇"],
-      ["english", "阅读错因归类"],
-      ["english", "阅读限时 2 篇"],
-      ["english", "本周真题词汇回看"]
-    ],
-    sport: Array.from({ length: 7 }, () => ["sport", "运动 · 拉伸 · 洗漱"]),
-    evening: [
-      ["cs", "计组章节题 + 当日复盘"],
-      ["math", "线代基础题 + 错题标注"],
-      ["english", "阅读定位句复盘"],
-      ["cs", "数据结构算法题 1 道"],
-      ["math", "数学本周错题回做"],
-      ["review", "三科周总结 + 补缺"],
-      ["review", "轻量预习，22:00 前收工"]
-    ]
-  };
-
-  const intensityRows = {
-    light: [
-      { key: "morning", label: "上午", time: "09:00–11:00" },
-      { key: "afternoon", label: "下午 A", time: "14:00–15:40" },
-      { key: "english", label: "下午 B", time: "15:50–16:30" },
-      { key: "sport", label: "运动", time: "17:00–19:00" },
-      { key: "evening", label: "晚间", time: "19:45–21:20" }
-    ],
-    standard: [
-      { key: "morning", label: "上午", time: "08:00–11:15" },
-      { key: "afternoon", label: "下午 A", time: "13:30–15:15" },
-      { key: "english", label: "下午 B", time: "15:30–16:30" },
-      { key: "sport", label: "运动", time: "17:00–19:00" },
-      { key: "evening", label: "晚间", time: "19:30–22:05" }
-    ],
-    sprint: [
-      { key: "morning", label: "上午", time: "07:40–11:35" },
-      { key: "afternoon", label: "下午 A", time: "13:00–15:30" },
-      { key: "english", label: "下午 B", time: "15:40–16:40" },
-      { key: "sport", label: "运动", time: "17:00–19:00" },
-      { key: "evening", label: "晚间", time: "19:30–22:30" }
-    ]
-  };
+  const weekBlocks = [
+    { key: "morning", label: "上午", time: "07:00–11:59" },
+    { key: "afternoon", label: "下午 A", time: "12:00–15:19" },
+    { key: "english", label: "下午 B", time: "15:20–16:59" },
+    { key: "sport", label: "运动", time: "17:00–19:00" },
+    { key: "evening", label: "晚间", time: "19:00 以后" }
+  ];
 
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
@@ -244,6 +193,7 @@
   };
 
   const defaultState = {
+    schemaVersion: SCHEMA_VERSION,
     planEndDate: DEFAULT_PLAN_END,
     intensity: "standard",
     progress: {
@@ -261,23 +211,21 @@
     tasks: [],
     generatedDates: [],
     planIntensityByDate: {},
-    weekPlan: {},
     studyLog: {},
-    review: {
-      mood: "steady",
-      wins: "",
-      fix: ""
-    }
+    reviews: {}
   };
 
   let state = loadState();
   let selectedDateISO = clampPlanDate(todayISO);
+  let weekViewStartISO = startOfWeekISO(selectedDateISO);
+  let selectedReviewWeekStartISO = startOfWeekISO(todayISO);
   let expandedTaskId = null;
   let editingTaskId = null;
   let draggedTaskId = null;
   let focusSeconds = FOCUS_SECONDS;
   let focusRunning = false;
   let focusInterval = null;
+  let focusEndsAt = 0;
   let toastTimer = null;
 
   init();
@@ -313,17 +261,131 @@
   }
 
   function normalizeState(saved, migratingLegacy = false) {
+    const source = isPlainObject(saved) ? saved : {};
+    const planEndDate = isValidISODate(source.planEndDate)
+      && source.planEndDate >= PLAN_START
+      && source.planEndDate <= MAX_PLAN_END
+      ? source.planEndDate
+      : DEFAULT_PLAN_END;
+    const progress = Object.fromEntries(Object.keys(defaultState.progress).map(key => [
+      key,
+      clampNumber(source.progress?.[key], 0, 100, defaultState.progress[key])
+    ]));
+    const seenTaskIds = new Set();
+    const tasks = (Array.isArray(source.tasks) ? source.tasks : [])
+      .slice(0, 5000)
+      .map(normalizeTask)
+      .filter(Boolean)
+      .filter(task => {
+        if (migratingLegacy && task.generated) return false;
+        if (seenTaskIds.has(task.id)) task.id = uid();
+        seenTaskIds.add(task.id);
+        return true;
+      });
+    const generatedDates = migratingLegacy ? [] : [...new Set(
+      (Array.isArray(source.generatedDates) ? source.generatedDates : [])
+        .filter(dateValue => isValidISODate(dateValue) && dateValue >= PLAN_START && dateValue <= MAX_PLAN_END)
+    )];
+    const planIntensityByDate = {};
+    if (!migratingLegacy && isPlainObject(source.planIntensityByDate)) {
+      Object.entries(source.planIntensityByDate).forEach(([dateValue, intensity]) => {
+        if (isValidISODate(dateValue) && VALID_INTENSITIES.has(intensity)) planIntensityByDate[dateValue] = intensity;
+      });
+    }
+    const studyLog = {};
+    if (isPlainObject(source.studyLog)) {
+      Object.entries(source.studyLog).forEach(([dateValue, hours]) => {
+        if (isValidISODate(dateValue)) studyLog[dateValue] = clampNumber(hours, 0, 16, 0, 1);
+      });
+    }
+    const reviews = {};
+    if (isPlainObject(source.reviews)) {
+      Object.entries(source.reviews).forEach(([weekStart, review]) => {
+        if (isValidISODate(weekStart)) reviews[startOfWeekISO(weekStart)] = normalizeReview(review);
+      });
+    }
+    if (isPlainObject(source.review)) {
+      reviews[startOfWeekISO(todayISO)] = normalizeReview(source.review);
+    }
     return {
-      ...structuredClone(defaultState),
-      ...saved,
-      planEndDate: migratingLegacy ? DEFAULT_PLAN_END : (saved.planEndDate || DEFAULT_PLAN_END),
-      progress: { ...defaultState.progress, ...(saved.progress || {}) },
-      review: { ...defaultState.review, ...(saved.review || {}) },
-      tasks: Array.isArray(saved.tasks) ? (migratingLegacy ? saved.tasks.filter(task => !task.generated) : saved.tasks) : [],
-      generatedDates: migratingLegacy ? [] : (Array.isArray(saved.generatedDates) ? saved.generatedDates : []),
-      planIntensityByDate: migratingLegacy ? {} : (saved.planIntensityByDate || {}),
-      weekPlan: saved.weekPlan || {},
-      studyLog: saved.studyLog || {}
+      schemaVersion: SCHEMA_VERSION,
+      planEndDate: migratingLegacy ? DEFAULT_PLAN_END : planEndDate,
+      intensity: VALID_INTENSITIES.has(source.intensity) ? source.intensity : defaultState.intensity,
+      progress,
+      tasks,
+      generatedDates,
+      planIntensityByDate,
+      studyLog,
+      reviews
+    };
+  }
+
+  function isPlainObject(value) {
+    return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+  }
+
+  function clampNumber(value, minimum, maximum, fallback, decimals = 0) {
+    const number = Number(value);
+    if (!Number.isFinite(number)) return fallback;
+    const clamped = Math.max(minimum, Math.min(maximum, number));
+    return Number(clamped.toFixed(decimals));
+  }
+
+  function safeText(value, maximum = 500) {
+    return typeof value === "string" ? value.trim().slice(0, maximum) : "";
+  }
+
+  function isValidISODate(value) {
+    if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+    const parsed = parseLocalDate(value);
+    return !Number.isNaN(parsed.getTime()) && toISODate(parsed) === value;
+  }
+
+  function isValidTime(value) {
+    if (typeof value !== "string" || !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value)) return false;
+    return true;
+  }
+
+  function normalizeTask(rawTask) {
+    if (!isPlainObject(rawTask)) return null;
+    const date = isValidISODate(rawTask.date) ? rawTask.date : "";
+    const start = isValidTime(rawTask.start) ? rawTask.start : "";
+    const end = isValidTime(rawTask.end) ? rawTask.end : "";
+    const title = safeText(rawTask.title, 160);
+    if (!date || date < PLAN_START || date > MAX_PLAN_END || !start || !end || timeToMinutes(end) <= timeToMinutes(start) || !title) return null;
+    const subject = VALID_SUBJECTS.has(rawTask.subject) ? rawTask.subject : "review";
+    const steps = (Array.isArray(rawTask.steps) ? rawTask.steps : [])
+      .map(step => safeText(step, 240))
+      .filter(Boolean)
+      .slice(0, 12);
+    const stepDone = (Array.isArray(rawTask.stepDone) ? rawTask.stepDone : [])
+      .slice(0, steps.length || 12)
+      .map(Boolean);
+    return {
+      id: safeText(rawTask.id, 120) || uid(),
+      date,
+      start,
+      end,
+      subject,
+      title,
+      done: Boolean(rawTask.done),
+      fixed: subject === "sport" && Boolean(rawTask.fixed),
+      generated: Boolean(rawTask.generated),
+      registration: subject === "admin" && Boolean(rawTask.registration),
+      objective: safeText(rawTask.objective, 800),
+      doneWhen: safeText(rawTask.doneWhen, 800),
+      steps,
+      stepDone,
+      note: safeText(rawTask.note, 2000)
+    };
+  }
+
+  function normalizeReview(rawReview) {
+    const review = isPlainObject(rawReview) ? rawReview : {};
+    return {
+      mood: ["tight", "steady", "great"].includes(review.mood) ? review.mood : "steady",
+      wins: safeText(review.wins, 3000),
+      fix: safeText(review.fix, 3000)
     };
   }
 
@@ -346,6 +408,8 @@
     }
     state = normalizeState(nextState);
     selectedDateISO = clampPlanDate(selectedDateISO);
+    weekViewStartISO = startOfWeekISO(selectedDateISO);
+    if (selectedReviewWeekStartISO > startOfWeekISO(state.planEndDate)) selectedReviewWeekStartISO = startOfWeekISO(state.planEndDate);
     expandedTaskId = null;
     editingTaskId = null;
     ensureFullPlan();
@@ -375,6 +439,19 @@
     return new Date(year, month - 1, day);
   }
 
+  function addDaysISO(value, amount) {
+    const date = parseLocalDate(value);
+    date.setDate(date.getDate() + amount);
+    return toISODate(date);
+  }
+
+  function startOfWeekISO(value) {
+    const date = parseLocalDate(value);
+    const mondayOffset = date.getDay() === 0 ? -6 : 1 - date.getDay();
+    date.setDate(date.getDate() + mondayOffset);
+    return toISODate(date);
+  }
+
   function clampPlanDate(value) {
     if (value < PLAN_START) return PLAN_START;
     if (value > (state?.planEndDate || DEFAULT_PLAN_END)) return state?.planEndDate || DEFAULT_PLAN_END;
@@ -384,7 +461,10 @@
   function eachPlanDate() {
     const dates = [];
     const cursor = parseLocalDate(PLAN_START);
-    const end = parseLocalDate(state.planEndDate);
+    const safeEnd = isValidISODate(state.planEndDate) && state.planEndDate <= MAX_PLAN_END
+      ? state.planEndDate
+      : DEFAULT_PLAN_END;
+    const end = parseLocalDate(safeEnd);
     while (cursor <= end) {
       dates.push(toISODate(cursor));
       cursor.setDate(cursor.getDate() + 1);
@@ -565,6 +645,7 @@
     saveState();
     renderAgenda();
     renderCalendar(true);
+    renderWeekTable();
     updateAllStats();
   }
 
@@ -652,7 +733,14 @@
         steps: ["只从研招网与目标院校官网进入", "逐项核对个人与报考信息", "完成缴费或材料上传", "截图并双重保存报名号 / 结果"]
       }
     };
-    return guidance[task.subject] || guidance.review;
+    const fallback = guidance[task.subject] || guidance.review;
+    return {
+      objective: safeText(task.objective, 800) || fallback.objective,
+      doneWhen: safeText(task.doneWhen, 800) || fallback.doneWhen,
+      steps: Array.isArray(task.steps) && task.steps.length
+        ? task.steps.map(step => safeText(step, 240)).filter(Boolean)
+        : fallback.steps
+    };
   }
 
   function renderAgenda() {
@@ -689,13 +777,13 @@
           </div>
           <div class="task-details" ${isExpanded ? "" : "hidden"}>
             <div class="detail-grid">
-              <div><span>这一块要解决什么</span><p>${guidance.objective}</p></div>
-              <div><span>怎样才算完成</span><p>${guidance.doneWhen}</p></div>
+              <div><span>这一块要解决什么</span><p>${escapeHTML(guidance.objective)}</p></div>
+              <div><span>怎样才算完成</span><p>${escapeHTML(guidance.doneWhen)}</p></div>
             </div>
             <div class="task-step-list">
               <span>执行步骤</span>
               ${guidance.steps.map((step, index) => `
-                <label><input type="checkbox" data-task-step="${index}" ${stepDone[index] ? "checked" : ""} /><i></i><em>${step}</em></label>
+                <label><input type="checkbox" data-task-step="${index}" ${stepDone[index] ? "checked" : ""} /><i></i><em>${escapeHTML(step)}</em></label>
               `).join("")}
             </div>
             <label class="task-note-field">
@@ -703,8 +791,9 @@
               <textarea rows="2" data-task-note placeholder="写下卡点、正确率或下次从哪里继续……">${escapeHTML(task.note || "")}</textarea>
             </label>
             <div class="detail-actions">
-              ${task.fixed ? "" : '<button type="button" data-action="edit">编辑日期、时间或名称</button>'}
-              <small>内容会自动保存在当前浏览器</small>
+              <button type="button" data-action="edit">编辑任务内容</button>
+              ${task.fixed ? "" : '<button type="button" class="detail-delete" data-action="delete">删除任务</button>'}
+              <small>修改会保存到本机，并在联网时同步到其他设备</small>
             </div>
           </div>
         </article>
@@ -731,10 +820,10 @@
       const registrationDay = tasks.some(task => task.subject === "admin");
       return `
         <article class="calendar-day ${dateValue === todayISO ? "is-today" : ""} ${dateValue === selectedDateISO ? "is-selected" : ""} ${isRegistrationWindow(dateValue) ? "registration-window" : ""}" data-calendar-date="${dateValue}">
-          <header data-action="select-date" tabindex="0" role="button" aria-label="查看 ${dateValue} 计划">
-            <div><span>${String(date.getMonth() + 1).padStart(2, "0")} /</span><strong>${String(date.getDate()).padStart(2, "0")}</strong></div>
-            <p>${weekdays[date.getDay()]}<small>${Number((studyMinutes / 60).toFixed(1))}h · ${tasks.length} 项</small></p>
-          </header>
+          <button class="calendar-day-select" data-action="select-date" type="button" aria-label="查看 ${dateValue} 计划">
+            <span class="calendar-date-stack"><span>${String(date.getMonth() + 1).padStart(2, "0")} /</span><strong>${String(date.getDate()).padStart(2, "0")}</strong></span>
+            <span class="calendar-day-meta">${weekdays[date.getDay()]}<small>${Number((studyMinutes / 60).toFixed(1))}h · ${tasks.length} 项</small></span>
+          </button>
           ${registrationDay ? '<div class="calendar-milestone">报名提醒 · 待官宣</div>' : ""}
           <div class="calendar-day-tasks">
             ${tasks.map(task => {
@@ -762,10 +851,12 @@
 
   function selectPlanDate(dateValue, moveToAgenda = false) {
     selectedDateISO = clampPlanDate(dateValue);
+    weekViewStartISO = startOfWeekISO(selectedDateISO);
     expandedTaskId = null;
     renderDates();
     renderAgenda();
     renderCalendar(true);
+    renderWeekTable();
     updateAllStats();
     scrollToCalendarDate(selectedDateISO);
     if (moveToAgenda) $("#today").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -830,62 +921,121 @@
 
   function renderWeekTable() {
     const table = $("#weekTable");
+    const previousWeekScroll = $(".week-table-wrap")?.scrollLeft || 0;
     const dayNames = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
-    const dayNotes = ["推进", "推进", "回炉", "推进", "推进", "周测", "复盘"];
-    const currentDayIndex = today.getDay() === 0 ? 6 : today.getDay() - 1;
-    const rows = intensityRows[state.intensity];
+    const weekDates = Array.from({ length: 7 }, (_, index) => addDaysISO(weekViewStartISO, index));
+    const weekTasks = state.tasks.filter(task => weekDates.includes(task.date));
+    const doneCount = weekTasks.filter(task => task.done).length;
     const cells = ['<div class="week-cell header-cell"><strong>时段</strong><span>BLOCK</span></div>'];
 
-    dayNames.forEach((day, index) => {
-      cells.push(`<div class="week-cell header-cell ${index === currentDayIndex ? "today-column" : ""}"><strong>${day}</strong><span>${dayNotes[index]}</span></div>`);
+    weekDates.forEach((dateValue, index) => {
+      const date = parseLocalDate(dateValue);
+      const inPlan = dateValue >= PLAN_START && dateValue <= state.planEndDate;
+      cells.push(`
+        <div class="week-cell header-cell ${dateValue === todayISO ? "today-column" : ""} ${dateValue === selectedDateISO ? "selected-column" : ""} ${inPlan ? "" : "outside-plan"}">
+          <button type="button" data-week-action="select-date" data-week-date="${dateValue}" ${inPlan ? "" : "disabled"}>
+            <strong>${dayNames[index]}</strong><span>${date.getMonth() + 1}.${String(date.getDate()).padStart(2, "0")}</span>
+          </button>
+        </div>
+      `);
     });
 
-    rows.forEach(row => {
-      cells.push(`<div class="week-cell time-cell"><span>${row.label}</span><small>${row.time}</small></div>`);
-      weekContents[row.key].forEach(([defaultType, defaultText], dayIndex) => {
-        const key = `${state.intensity}-${row.key}-${dayIndex}`;
-        const custom = state.weekPlan[key];
-        const text = custom?.text ?? defaultText;
-        const type = custom?.type ?? defaultType;
-        const meta = subjectMeta[type] || subjectMeta.review;
-        const isSport = row.key === "sport";
+    weekBlocks.forEach(block => {
+      cells.push(`<div class="week-cell time-cell"><span>${block.label}</span><small>${block.time}</small></div>`);
+      weekDates.forEach(dateValue => {
+        const inPlan = dateValue >= PLAN_START && dateValue <= state.planEndDate;
+        const tasks = weekTasks
+          .filter(task => task.date === dateValue && weekBlockForTask(task) === block.key)
+          .sort((a, b) => a.start.localeCompare(b.start));
         cells.push(`
-          <div class="week-cell ${isSport ? "sport-cell" : "study-cell"} ${dayIndex === currentDayIndex ? "today-column" : ""}" style="--cell-color:${meta.color}">
-            <span class="cell-type">${meta.code}${isSport ? " · LOCKED" : ""}</span>
-            <p ${isSport ? "" : 'contenteditable="true" spellcheck="false"'} data-week-key="${key}" data-week-type="${type}">${escapeHTML(text)}</p>
+          <div class="week-cell ${block.key === "sport" ? "sport-cell" : "study-cell"} ${dateValue === todayISO ? "today-column" : ""} ${dateValue === selectedDateISO ? "selected-column" : ""} ${inPlan ? "" : "outside-plan"}">
+            <div class="week-task-list">
+              ${tasks.map(task => {
+                const meta = subjectMeta[task.subject] || subjectMeta.review;
+                return `
+                  <article class="week-task-chip ${task.done ? "done" : ""}" style="--cell-color:${meta.color}">
+                    <button class="week-task-toggle" type="button" data-week-action="toggle" data-week-task-id="${escapeHTML(task.id)}" aria-label="${task.done ? "标记未完成" : "标记完成"}" aria-pressed="${task.done}"></button>
+                    <button class="week-task-main" type="button" data-week-action="edit" data-week-task-id="${escapeHTML(task.id)}">
+                      <small>${escapeHTML(task.start)} · ${meta.code}${task.fixed ? " · 固定" : ""}</small>
+                      <strong>${escapeHTML(task.title)}</strong>
+                    </button>
+                  </article>
+                `;
+              }).join("")}
+              ${inPlan && block.key !== "sport" ? `<button class="week-add-task" type="button" data-week-action="add" data-week-date="${dateValue}" data-week-block="${block.key}" aria-label="在 ${dateValue} ${block.label}添加任务">＋</button>` : ""}
+            </div>
           </div>
         `);
       });
     });
     table.innerHTML = cells.join("");
-
-    $$(".intensity-switch button").forEach(button => {
-      button.classList.toggle("active", button.dataset.intensity === state.intensity);
+    $("#weekRangeLabel").textContent = `${formatShortDate(weekDates[0])}—${formatShortDate(weekDates[6])}`;
+    $("#weekTaskSummary").textContent = `${doneCount} / ${weekTasks.length} 项完成`;
+    $("#previousWeek").disabled = addDaysISO(weekViewStartISO, -1) < PLAN_START;
+    $("#nextWeek").disabled = addDaysISO(weekViewStartISO, 7) > state.planEndDate;
+    window.requestAnimationFrame(() => {
+      const wrap = $(".week-table-wrap");
+      const selectedHeader = $(`[data-week-date="${selectedDateISO}"][data-week-action="select-date"]`, table)?.closest(".week-cell");
+      if (!wrap || wrap.scrollWidth <= wrap.clientWidth) return;
+      wrap.scrollLeft = selectedHeader
+        ? Math.max(0, selectedHeader.offsetLeft - Math.max(94, (wrap.clientWidth - selectedHeader.offsetWidth) / 2))
+        : previousWeekScroll;
     });
   }
 
+  function weekBlockForTask(task) {
+    const start = timeToMinutes(task.start);
+    if (task.subject === "sport" && (task.fixed || (start >= 17 * 60 && start < 19 * 60))) return "sport";
+    if (start < 12 * 60) return "morning";
+    if (start < 15 * 60 + 20) return "afternoon";
+    if (start < 17 * 60) return "english";
+    return "evening";
+  }
+
+  function weekAddDefaults(blockKey) {
+    return {
+      morning: { start: "09:00", end: "10:00", subject: "math" },
+      afternoon: { start: "14:00", end: "15:00", subject: "cs" },
+      english: { start: "15:30", end: "16:30", subject: "english" },
+      evening: { start: "19:30", end: "20:30", subject: "review" }
+    }[blockKey] || { start: "15:00", end: "16:00", subject: "math" };
+  }
+
+  function formatShortDate(value) {
+    const date = parseLocalDate(value);
+    return `${date.getMonth() + 1}月${date.getDate()}日`;
+  }
+
   function renderReview() {
-    $("#weeklyWins").value = state.review.wins;
-    $("#weeklyFix").value = state.review.fix;
-    $$("#moodOptions button").forEach(button => button.classList.toggle("active", button.dataset.mood === state.review.mood));
+    const options = [];
+    for (let cursor = startOfWeekISO(PLAN_START); cursor <= startOfWeekISO(state.planEndDate); cursor = addDaysISO(cursor, 7)) options.push(cursor);
+    if (!options.includes(selectedReviewWeekStartISO)) selectedReviewWeekStartISO = options.includes(startOfWeekISO(todayISO)) ? startOfWeekISO(todayISO) : options.at(-1);
+    $("#reviewWeekSelect").innerHTML = options.map(weekStart => {
+      const selected = weekStart === selectedReviewWeekStartISO ? "selected" : "";
+      return `<option value="${weekStart}" ${selected}>${formatShortDate(weekStart)}—${formatShortDate(addDaysISO(weekStart, 6))}</option>`;
+    }).join("");
+    const review = state.reviews[selectedReviewWeekStartISO] || normalizeReview({});
+    $("#weeklyWins").value = review.wins;
+    $("#weeklyFix").value = review.fix;
+    $$("#moodOptions input[data-mood]").forEach(input => {
+      input.checked = input.dataset.mood === review.mood;
+    });
     $("#todayHoursInput").value = state.studyLog[todayISO] ?? 0;
     renderChart();
   }
 
   function renderChart() {
-    const labels = ["日", "一", "二", "三", "四", "五", "六"];
+    const labels = ["一", "二", "三", "四", "五", "六", "日"];
     const values = [];
     const html = [];
-    for (let offset = 6; offset >= 0; offset -= 1) {
-      const date = new Date(today);
-      date.setDate(today.getDate() - offset);
-      const key = toISODate(date);
+    for (let offset = 0; offset < 7; offset += 1) {
+      const key = addDaysISO(selectedReviewWeekStartISO, offset);
       const value = Number(state.studyLog[key] || 0);
       values.push(value);
       const height = Math.max(2, Math.min(100, (value / 12) * 100));
       html.push(`
-        <div class="bar-item ${offset === 0 ? "today" : ""}" style="--bar-height:${height}%" title="${value} 小时">
-          <span>${value ? `${value}h` : "–"}</span><i></i><small>周${labels[date.getDay()]}</small>
+        <div class="bar-item ${key === todayISO ? "today" : ""}" style="--bar-height:${height}%" title="${key} · ${value} 小时">
+          <span>${value ? `${value}h` : "–"}</span><i></i><small>周${labels[offset]}</small>
         </div>
       `);
     }
@@ -988,19 +1138,14 @@
         saveState();
         renderAgenda();
         renderCalendar(true);
+        renderWeekTable();
         updateAllStats();
         if (task.done) showToast(`完成：${task.title}`);
         return;
       }
 
       if (event.target.closest('[data-action="delete"]')) {
-        state.tasks = state.tasks.filter(entry => entry.id !== task.id);
-        if (expandedTaskId === task.id) expandedTaskId = null;
-        saveState();
-        renderAgenda();
-        renderCalendar(true);
-        updateAllStats();
-        showToast("任务已移出时间轴。", "short");
+        deleteTask(task);
         return;
       }
 
@@ -1048,6 +1193,10 @@
 
     $("#addTaskButton").addEventListener("click", () => openTaskDialog());
     $("#taskForm").addEventListener("submit", handleTaskSubmit);
+    $("#taskDeleteButton").addEventListener("click", () => {
+      const task = state.tasks.find(entry => entry.id === editingTaskId);
+      if (task) deleteTask(task, true);
+    });
     $("#taskDialog .modal-close").addEventListener("click", () => closeDialog($("#taskDialog")));
 
     $$(".phase-tab").forEach(button => {
@@ -1092,10 +1241,12 @@
         const task = state.tasks.find(entry => entry.id === taskCard.dataset.calendarTaskId);
         if (!task) return;
         selectedDateISO = task.date;
+        weekViewStartISO = startOfWeekISO(selectedDateISO);
         expandedTaskId = task.id;
         renderDates();
         renderAgenda();
         renderCalendar(true);
+        renderWeekTable();
         updateAllStats();
         $("#today").scrollIntoView({ behavior: "smooth", block: "start" });
         return;
@@ -1142,12 +1293,14 @@
       const oldDate = task.date;
       task.date = day.dataset.calendarDate;
       selectedDateISO = task.date;
+      weekViewStartISO = startOfWeekISO(selectedDateISO);
       expandedTaskId = task.id;
       draggedTaskId = null;
       saveState();
       renderDates();
       renderAgenda();
       renderCalendar(true);
+      renderWeekTable();
       updateAllStats();
       showToast(`已把“${task.title}”从 ${oldDate.slice(5)} 移到 ${task.date.slice(5)}。`);
     });
@@ -1175,34 +1328,56 @@
       saveState();
     });
 
-    $$(".intensity-switch button").forEach(button => {
-      button.addEventListener("click", () => setIntensity(button.dataset.intensity));
+    $("#previousWeek").addEventListener("click", () => {
+      weekViewStartISO = addDaysISO(weekViewStartISO, -7);
+      renderWeekTable();
     });
-
-    $("#weekTable").addEventListener("input", event => {
-      const field = event.target.closest("[data-week-key]");
-      if (!field) return;
-      state.weekPlan[field.dataset.weekKey] = {
-        text: field.textContent.trim(),
-        type: field.dataset.weekType
-      };
-      saveState();
+    $("#currentWeek").addEventListener("click", () => {
+      weekViewStartISO = startOfWeekISO(clampPlanDate(todayISO));
+      renderWeekTable();
     });
-
-    $("#weekTable").addEventListener("keydown", event => {
-      const field = event.target.closest("[data-week-key]");
-      if (field && event.key === "Enter") {
-        event.preventDefault();
-        field.blur();
+    $("#nextWeek").addEventListener("click", () => {
+      weekViewStartISO = addDaysISO(weekViewStartISO, 7);
+      renderWeekTable();
+    });
+    $("#weekTable").addEventListener("click", event => {
+      const trigger = event.target.closest("[data-week-action]");
+      if (!trigger) return;
+      const action = trigger.dataset.weekAction;
+      if (action === "select-date") {
+        selectPlanDate(trigger.dataset.weekDate, true);
+        return;
       }
+      if (action === "add") {
+        const defaults = weekAddDefaults(trigger.dataset.weekBlock);
+        openTaskDialog(null, { date: trigger.dataset.weekDate, ...defaults });
+        return;
+      }
+      const task = state.tasks.find(entry => entry.id === trigger.dataset.weekTaskId);
+      if (!task) return;
+      if (action === "toggle") {
+        task.done = !task.done;
+        saveState();
+        renderAgenda();
+        renderCalendar(true);
+        renderWeekTable();
+        updateAllStats();
+        return;
+      }
+      if (action === "edit") openTaskDialog(task);
     });
 
-    $("#moodOptions").addEventListener("click", event => {
-      const button = event.target.closest("button[data-mood]");
-      if (!button) return;
-      state.review.mood = button.dataset.mood;
-      $$("#moodOptions button").forEach(entry => entry.classList.toggle("active", entry === button));
+    $("#moodOptions").addEventListener("change", event => {
+      const input = event.target.closest("input[data-mood]");
+      if (!input) return;
+      state.reviews[selectedReviewWeekStartISO] = state.reviews[selectedReviewWeekStartISO] || normalizeReview({});
+      state.reviews[selectedReviewWeekStartISO].mood = input.dataset.mood;
       saveState();
+    });
+
+    $("#reviewWeekSelect").addEventListener("change", event => {
+      selectedReviewWeekStartISO = event.target.value;
+      renderReview();
     });
 
     $("#saveHours").addEventListener("click", () => {
@@ -1215,8 +1390,9 @@
     });
 
     $("#saveReview").addEventListener("click", () => {
-      state.review.wins = $("#weeklyWins").value.trim();
-      state.review.fix = $("#weeklyFix").value.trim();
+      state.reviews[selectedReviewWeekStartISO] = state.reviews[selectedReviewWeekStartISO] || normalizeReview({});
+      state.reviews[selectedReviewWeekStartISO].wins = safeText($("#weeklyWins").value, 3000);
+      state.reviews[selectedReviewWeekStartISO].fix = safeText($("#weeklyFix").value, 3000);
       saveState();
       showToast("本周复盘已保存。下周只修正一个最重要的问题。", "short");
     });
@@ -1239,32 +1415,61 @@
     });
 
     $("#exportData").addEventListener("click", exportData);
+    $("#importData").addEventListener("click", () => $("#importDataFile").click());
+    $("#importDataFile").addEventListener("change", importData);
+    $("#conflictBackups").addEventListener("click", event => {
+      const button = event.target.closest("[data-restore-backup]");
+      if (button) restoreConflictBackup(button.dataset.restoreBackup);
+    });
     window.addEventListener("scroll", updatePageProgress, { passive: true });
   }
 
-  function openTaskDialog(task = null) {
+  function openTaskDialog(task = null, defaults = {}) {
     editingTaskId = task?.id || null;
     $("#taskForm").reset();
+    const draft = task || {
+      date: defaults.date || selectedDateISO,
+      subject: defaults.subject || "math",
+      start: defaults.start || "15:00",
+      end: defaults.end || "16:00",
+      title: ""
+    };
+    const guidance = taskGuidance(draft);
     $("#taskDialogTitle").textContent = task ? "编辑这段日程" : "添加一段日程";
     $("#taskSubmitButton").textContent = task ? "保存修改" : "加入时间轴";
-    $("#taskTitle").value = task?.title || "";
-    $("#taskDate").value = task?.date || selectedDateISO;
-    $("#taskSubject").value = task?.subject || "math";
-    $("#taskStart").value = task?.start || "15:00";
-    $("#taskEnd").value = task?.end || "16:00";
+    $("#taskTitle").value = draft.title || "";
+    $("#taskDate").min = PLAN_START;
+    $("#taskDate").max = state.planEndDate;
+    $("#taskDate").value = draft.date;
+    $("#taskSubject").value = draft.subject;
+    $("#taskStart").value = draft.start;
+    $("#taskEnd").value = draft.end;
+    $("#taskObjective").value = guidance.objective;
+    $("#taskDoneWhen").value = guidance.doneWhen;
+    $("#taskSteps").value = guidance.steps.join("\n");
+    $("#taskNote").value = task?.note || "";
+    [$("#taskDate"), $("#taskSubject"), $("#taskStart"), $("#taskEnd")].forEach(input => { input.disabled = Boolean(task?.fixed); });
+    $("#taskDeleteButton").hidden = !task || Boolean(task.fixed);
     $("#taskFormHint").classList.remove("error");
-    $("#taskFormHint").textContent = "17:00–19:00 已锁定为运动时间，学习任务不能与它重叠。";
+    $("#taskFormHint").textContent = task?.fixed
+      ? "固定运动块可编辑名称、目标、步骤与记录；日期和时间保持 17:00–19:00。"
+      : "17:00–19:00 已锁定为运动时间，其他学习任务不能与它重叠。";
     openDialog($("#taskDialog"));
     window.setTimeout(() => $("#taskTitle").focus(), 120);
   }
 
   function handleTaskSubmit(event) {
     event.preventDefault();
-    const title = $("#taskTitle").value.trim();
-    const date = $("#taskDate").value;
-    const subject = $("#taskSubject").value;
-    const start = $("#taskStart").value;
-    const end = $("#taskEnd").value;
+    const existingTask = editingTaskId ? state.tasks.find(entry => entry.id === editingTaskId) : null;
+    const title = safeText($("#taskTitle").value, 160);
+    const date = existingTask?.fixed ? existingTask.date : $("#taskDate").value;
+    const subject = existingTask?.fixed ? existingTask.subject : $("#taskSubject").value;
+    const start = existingTask?.fixed ? existingTask.start : $("#taskStart").value;
+    const end = existingTask?.fixed ? existingTask.end : $("#taskEnd").value;
+    const objective = safeText($("#taskObjective").value, 800);
+    const doneWhen = safeText($("#taskDoneWhen").value, 800);
+    const steps = $("#taskSteps").value.split(/\r?\n/).map(step => safeText(step, 240)).filter(Boolean).slice(0, 12);
+    const note = safeText($("#taskNote").value, 2000);
     const hint = $("#taskFormHint");
 
     if (!title || !date || !start || !end) return;
@@ -1278,46 +1483,58 @@
       hint.classList.add("error");
       return;
     }
-    if (overlaps(start, end, "17:00", "19:00")) {
+    if (subject !== "sport" && overlaps(start, end, "17:00", "19:00")) {
       hint.textContent = "这段时间与 17:00–19:00 运动块重叠，请换一个时段。";
       hint.classList.add("error");
       return;
     }
 
-    const existingTask = editingTaskId ? state.tasks.find(entry => entry.id === editingTaskId) : null;
     if (existingTask) {
-      Object.assign(existingTask, { date, start, end, subject, title });
+      const previousSteps = taskGuidance(existingTask).steps;
+      const previousDone = Array.isArray(existingTask.stepDone) ? existingTask.stepDone : [];
+      const stepDone = steps.map((step, index) => previousSteps[index] === step && Boolean(previousDone[index]));
+      Object.assign(existingTask, { date, start, end, subject, title, objective, doneWhen, steps, stepDone, note });
     } else {
       state.tasks.push({
         id: uid(), date, start, end, subject, title,
-        done: false, fixed: false, generated: false
+        done: false, fixed: false, generated: false,
+        objective, doneWhen, steps, stepDone: steps.map(() => false), note
       });
     }
     saveState();
     closeDialog($("#taskDialog"));
     editingTaskId = null;
     selectedDateISO = date;
-    expandedTaskId = existingTask?.id || null;
+    weekViewStartISO = startOfWeekISO(date);
+    expandedTaskId = existingTask?.id || state.tasks.at(-1)?.id || null;
     renderDates();
     renderAgenda();
     renderCalendar(true);
+    renderWeekTable();
     updateAllStats();
     showToast(existingTask ? "日程修改已保存。" : `任务已保存到 ${date}。`, "short");
   }
 
-  function setIntensity(intensity) {
-    if (!intensityRows[intensity]) return;
-    state.intensity = intensity;
+  function deleteTask(task, closeTaskDialog = false) {
+    if (!task || task.fixed) return;
+    state.tasks = state.tasks.filter(entry => entry.id !== task.id);
+    if (expandedTaskId === task.id) expandedTaskId = null;
+    if (editingTaskId === task.id) editingTaskId = null;
     saveState();
+    if (closeTaskDialog) closeDialog($("#taskDialog"));
+    renderAgenda();
+    renderCalendar(true);
     renderWeekTable();
     updateAllStats();
-    $("#intensityInput").value = intensity;
-    showToast(`周表默认强度已切换为${intensityNames[intensity]}；横向日历现有任务保持不变。`);
+    showToast("任务已移出时间轴。", "short");
   }
 
   function openSettings() {
     $("#planEndDateInput").value = state.planEndDate;
+    $("#planEndDateInput").min = PLAN_START;
+    $("#planEndDateInput").max = MAX_PLAN_END;
     $("#intensityInput").value = state.intensity;
+    renderConflictBackups();
     openDialog($("#settingsDialog"));
   }
 
@@ -1325,12 +1542,12 @@
     event.preventDefault();
     const planEndDate = $("#planEndDateInput").value;
     const intensity = $("#intensityInput").value;
-    if (!planEndDate || planEndDate < PLAN_START || parseLocalDate(planEndDate) <= today) {
-      showToast("计划截止日需要晚于今天，且不能早于计划起点。", "short");
+    if (!isValidISODate(planEndDate) || planEndDate < PLAN_START || planEndDate > MAX_PLAN_END || parseLocalDate(planEndDate) <= today) {
+      showToast(`计划截止日需要晚于今天，且不能超过 ${MAX_PLAN_END}。`, "short");
       return;
     }
     state.planEndDate = planEndDate;
-    state.intensity = intensity;
+    state.intensity = VALID_INTENSITIES.has(intensity) ? intensity : "standard";
     selectedDateISO = clampPlanDate(selectedDateISO);
     ensureFullPlan();
     saveState();
@@ -1339,6 +1556,7 @@
     renderAgenda();
     renderCalendar();
     renderWeekTable();
+    renderReview();
     updateAllStats();
     closeDialog($("#settingsDialog"));
     showToast("设置已保存；计划范围与横向日历已同步。", "short");
@@ -1359,42 +1577,51 @@
   function toggleTimer() {
     if (focusRunning) {
       window.clearInterval(focusInterval);
+      focusSeconds = Math.max(0, Math.ceil((focusEndsAt - Date.now()) / 1000));
       focusRunning = false;
+      focusEndsAt = 0;
       $("#timerToggle").textContent = "继续专注";
       $("#timerStatus").textContent = "已暂停";
       return;
     }
 
+    if (focusSeconds <= 0) focusSeconds = FOCUS_SECONDS;
     focusRunning = true;
+    focusEndsAt = Date.now() + focusSeconds * 1000;
     $("#timerToggle").textContent = "暂停一下";
     $("#timerStatus").textContent = "进行中";
-    focusInterval = window.setInterval(() => {
-      focusSeconds -= 1;
+    const tick = () => {
+      focusSeconds = Math.max(0, Math.ceil((focusEndsAt - Date.now()) / 1000));
       renderTimer();
       if (focusSeconds <= 0) {
         window.clearInterval(focusInterval);
         focusRunning = false;
+        focusEndsAt = 0;
         $("#timerToggle").textContent = "再来一轮";
         $("#timerStatus").textContent = "本轮完成";
         showToast("50 分钟专注完成。起身喝水，休息 10 分钟。", "long");
       }
-    }, 1000);
+    };
+    tick();
+    focusInterval = window.setInterval(tick, 250);
   }
 
   function resetTimer() {
     window.clearInterval(focusInterval);
     focusRunning = false;
     focusSeconds = FOCUS_SECONDS;
+    focusEndsAt = 0;
     $("#timerToggle").textContent = "开始专注";
     $("#timerStatus").textContent = "待开始";
     renderTimer();
   }
 
   function renderTimer() {
-    const minutes = Math.floor(focusSeconds / 60);
-    const seconds = focusSeconds % 60;
+    const safeSeconds = Math.max(0, Math.min(FOCUS_SECONDS, Math.ceil(focusSeconds)));
+    const minutes = Math.floor(safeSeconds / 60);
+    const seconds = safeSeconds % 60;
     $("#timerDisplay").textContent = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-    const degrees = ((FOCUS_SECONDS - focusSeconds) / FOCUS_SECONDS) * 360;
+    const degrees = ((FOCUS_SECONDS - safeSeconds) / FOCUS_SECONDS) * 360;
     $("#timerRing").style.setProperty("--timer-progress", `${degrees}deg`);
   }
 
@@ -1414,6 +1641,68 @@
     link.remove();
     URL.revokeObjectURL(url);
     showToast("备份文件已导出。", "short");
+  }
+
+  async function importData(event) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    try {
+      if (file.size > 10 * 1024 * 1024) throw new RangeError("备份文件超过 10 MB 上限");
+      const parsed = JSON.parse(await file.text());
+      const imported = isPlainObject(parsed?.data) ? parsed.data : parsed;
+      if (!isPlainObject(imported)) throw new TypeError("备份根节点不是对象");
+      preserveCurrentStateBackup("导入前自动备份");
+      replaceStateFromCloud(imported);
+      saveState();
+      showToast("备份已导入，并进入云同步队列。", "long");
+    } catch (error) {
+      showToast(`导入失败：${safeText(error?.message || error, 120) || "文件格式无效"}`, "long");
+    }
+  }
+
+  function preserveCurrentStateBackup(reason) {
+    const key = `${CONFLICT_BACKUP_PREFIX}${Date.now()}`;
+    localStorage.setItem(key, JSON.stringify({ savedAt: new Date().toISOString(), reason, data: state }));
+    return key;
+  }
+
+  function conflictBackups() {
+    const backups = [];
+    for (let index = 0; index < localStorage.length; index += 1) {
+      const key = localStorage.key(index);
+      if (!key?.startsWith(CONFLICT_BACKUP_PREFIX)) continue;
+      try {
+        const record = JSON.parse(localStorage.getItem(key));
+        if (isPlainObject(record?.data)) backups.push({ key, savedAt: record.savedAt, reason: record.reason });
+      } catch {
+        // Ignore malformed legacy backup entries; they remain untouched for manual recovery.
+      }
+    }
+    return backups.sort((a, b) => String(b.savedAt).localeCompare(String(a.savedAt)));
+  }
+
+  function renderConflictBackups() {
+    const container = $("#conflictBackups");
+    const backups = conflictBackups();
+    container.innerHTML = backups.length ? backups.map(backup => {
+      const date = backup.savedAt ? new Date(backup.savedAt).toLocaleString("zh-CN", { hour12: false }) : "时间未知";
+      return `<div><span><strong>${escapeHTML(backup.reason || "同步冲突备份")}</strong><small>${escapeHTML(date)}</small></span><button type="button" data-restore-backup="${escapeHTML(backup.key)}">恢复</button></div>`;
+    }).join("") : "<p>暂无冲突或导入前备份。</p>";
+  }
+
+  function restoreConflictBackup(key) {
+    try {
+      const record = JSON.parse(localStorage.getItem(key));
+      if (!isPlainObject(record?.data)) throw new TypeError("备份内容无效");
+      preserveCurrentStateBackup("恢复前自动备份");
+      replaceStateFromCloud(record.data);
+      saveState();
+      renderConflictBackups();
+      showToast("备份已恢复，并进入云同步队列。", "long");
+    } catch (error) {
+      showToast(`恢复失败：${safeText(error?.message || error, 120)}`, "long");
+    }
   }
 
   function showToast(message, duration = "normal") {

@@ -2,6 +2,8 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://wsxflndffdymmmekxxqu.supabase.co wss://wsxflndffdymmmekxxqu.supabase.co; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests" />
+    <meta name="referrer" content="no-referrer" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
@@ -9,7 +11,7 @@
     />
     <meta name="theme-color" content="#17364a" />
     <title>岸线 · 27 考研作战手册</title>
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='29' fill='%23d84b35'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-family='monospace' font-size='23' font-weight='700' fill='%23f8f4ea'%3E27%3C/text%3E%3C/svg%3E" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='29' fill='%23b43d2b'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-family='monospace' font-size='23' font-weight='700' fill='%23f8f4ea'%3E27%3C/text%3E%3C/svg%3E" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body class="cloud-locked">
@@ -153,7 +155,7 @@
             <h2 id="today-title">今日执行面</h2>
           </div>
           <div class="heading-side agenda-heading-side">
-            <div class="date-stepper" aria-label="切换执行日期">
+            <div class="date-stepper" role="group" aria-label="切换执行日期">
               <button id="previousPlanDate" type="button" aria-label="前一天">←</button>
               <p id="todayFullDate">2026 年 7 月 18 日</p>
               <button id="nextPlanDate" type="button" aria-label="后一天">→</button>
@@ -175,7 +177,7 @@
             </div>
           </div>
 
-          <aside class="today-sidebar">
+	          <aside class="today-sidebar" aria-label="今日辅助工具">
             <article class="focus-card">
               <div class="focus-topline">
                 <span>FOCUS / 50</span>
@@ -247,7 +249,7 @@
           </aside>
 
           <div class="calendar-toolbar">
-            <div class="month-jumps" aria-label="按月份跳转">
+            <div class="month-jumps" role="group" aria-label="按月份跳转">
               <button type="button" data-calendar-jump="2026-07-18">7 月</button>
               <button type="button" data-calendar-jump="2026-08-01">8 月</button>
               <button type="button" data-calendar-jump="2026-09-01">9 月</button>
@@ -319,20 +321,21 @@
             <p class="section-index">04 / WEEK</p>
             <h2 id="week-title">一周节律表</h2>
           </div>
-          <div class="intensity-switch" aria-label="学习强度">
-            <button type="button" data-intensity="light">轻量 6h</button>
-            <button class="active" type="button" data-intensity="standard">标准 8h</button>
-            <button type="button" data-intensity="sprint">冲刺 10h</button>
-          </div>
+	          <div class="week-navigator" role="group" aria-label="切换周计划">
+	            <button id="previousWeek" type="button" aria-label="上一周">←</button>
+	            <div><strong id="weekRangeLabel">本周</strong><small id="weekTaskSummary">0 / 0 项完成</small></div>
+	            <button id="nextWeek" type="button" aria-label="下一周">→</button>
+	            <button id="currentWeek" type="button">回到本周</button>
+	          </div>
         </header>
 
         <div class="week-intro">
-          <p><strong>默认节律：</strong>六天推进，一天复盘；上午数学、下午 408、英语每天见面。运动块不可编辑。</p>
-          <span>表格中的学习内容可直接点击修改</span>
+	          <p><strong>真实周计划：</strong>这里直接读取所选周的实际任务，不是固定模板；今日执行面、日历和周表始终共用同一份数据。</p>
+	          <span>点任务编辑内容或完成状态，点“＋”添加该时段任务</span>
         </div>
 
-        <div class="week-table-wrap">
-          <div class="week-table" id="weekTable" aria-label="每周学习计划表"></div>
+	        <div class="week-table-wrap" tabindex="0" aria-label="横向滚动查看所选周的真实任务">
+	          <div class="week-table" id="weekTable"></div>
         </div>
         <div class="week-legend">
           <span><i class="math-dot"></i>数学一</span>
@@ -358,7 +361,7 @@
               <div class="card-heading">
                 <div>
                   <span>STUDY HOURS</span>
-                  <h3>近七天有效学习</h3>
+	                  <h3>所选周有效学习</h3>
                 </div>
                 <strong id="weekHoursTotal">0h</strong>
               </div>
@@ -371,13 +374,14 @@
             </article>
 
             <article class="review-form-card">
-              <div class="mood-row">
+	              <label class="review-week-picker"><span>正在复盘</span><select id="reviewWeekSelect" aria-label="选择要复盘的周"></select></label>
+	              <div class="mood-row">
                 <span>本周体感</span>
-                <div class="mood-options" id="moodOptions" role="radiogroup" aria-label="本周体感">
-                  <button type="button" data-mood="tight" aria-label="吃力">◔</button>
-                  <button class="active" type="button" data-mood="steady" aria-label="稳定">◑</button>
-                  <button type="button" data-mood="great" aria-label="顺畅">●</button>
-                </div>
+	                <div class="mood-options" id="moodOptions" role="radiogroup" aria-label="本周体感">
+	                  <label><input type="radio" name="weeklyMood" value="tight" data-mood="tight" aria-label="吃力" /><span aria-hidden="true">◔</span></label>
+	                  <label><input type="radio" name="weeklyMood" value="steady" data-mood="steady" aria-label="稳定" checked /><span aria-hidden="true">◑</span></label>
+	                  <label><input type="radio" name="weeklyMood" value="great" data-mood="great" aria-label="顺畅" /><span aria-hidden="true">●</span></label>
+	                </div>
               </div>
               <label class="review-field">
                 <span>这周真正推进了什么？</span>
@@ -390,7 +394,7 @@
               <button class="button button-primary full-button" id="saveReview" type="button">保存本周复盘</button>
             </article>
 
-            <aside class="checkpoint-card">
+	            <aside class="checkpoint-card" aria-label="下一检查点">
               <span>NEXT CHECKPOINT</span>
               <strong>11 月 15 日</strong>
               <p>本轮详细计划收官：三科完成强化或真题检验，报名与网上确认不留遗漏。</p>
@@ -412,7 +416,7 @@
           <span class="brand-seal small-seal">27</span>
           <p>计划服务于执行，执行服务于上岸。</p>
         </div>
-        <p>本机离线缓存 + Supabase 私人云同步 · <button id="exportData" type="button">导出备份</button></p>
+	        <p>本机离线缓存 + Supabase 私人云同步 · <button id="exportData" type="button">导出备份</button> · <button id="importData" type="button">导入备份</button><input id="importDataFile" type="file" accept="application/json,.json" aria-label="选择 JSON 备份文件" hidden /></p>
       </div>
     </footer>
 
@@ -427,7 +431,7 @@
           <input id="taskTitle" name="title" type="text" required placeholder="例如：线代行列式基础题 20 道" />
         </label>
         <div class="form-row">
-          <label><span>日期</span><input id="taskDate" name="date" type="date" required /></label>
+	          <label><span>日期</span><input id="taskDate" name="date" type="date" min="2026-07-18" max="2026-12-31" required /></label>
           <label><span>科目</span>
             <select id="taskSubject" name="subject">
               <option value="math">数学一</option>
@@ -439,12 +443,16 @@
             </select>
           </label>
         </div>
-        <div class="form-row">
-          <label><span>开始</span><input id="taskStart" name="start" type="time" required value="15:00" /></label>
-          <label><span>结束</span><input id="taskEnd" name="end" type="time" required value="16:00" /></label>
-        </div>
-        <p class="form-hint" id="taskFormHint">17:00–19:00 已锁定为运动时间，学习任务不能与它重叠。</p>
-        <button class="button button-primary full-button" id="taskSubmitButton" value="default" type="submit">加入时间轴</button>
+	        <div class="form-row">
+	          <label><span>开始</span><input id="taskStart" name="start" type="time" required value="15:00" /></label>
+	          <label><span>结束</span><input id="taskEnd" name="end" type="time" required value="16:00" /></label>
+	        </div>
+	        <label><span>这一块要解决什么</span><textarea id="taskObjective" rows="2" maxlength="800" placeholder="写清这段任务的目标"></textarea></label>
+	        <label><span>怎样才算完成</span><textarea id="taskDoneWhen" rows="2" maxlength="800" placeholder="写成可检查的完成标准"></textarea></label>
+	        <label><span>执行步骤（每行一步）</span><textarea id="taskSteps" rows="4" maxlength="3000" placeholder="闭卷回忆框架&#10;限时完成题组&#10;标记错因"></textarea></label>
+	        <label><span>任务记录</span><textarea id="taskNote" rows="2" maxlength="2000" placeholder="卡点、正确率、下次从哪里继续……"></textarea></label>
+	        <p class="form-hint" id="taskFormHint">17:00–19:00 已锁定为运动时间，学习任务不能与它重叠。</p>
+	        <div class="task-form-actions"><button class="button button-danger" id="taskDeleteButton" type="button" hidden>删除任务</button><button class="button button-primary" id="taskSubmitButton" value="default" type="submit">加入时间轴</button></div>
       </form>
     </dialog>
 
@@ -456,20 +464,25 @@
         </div>
         <label>
           <span>本轮详细计划截止日</span>
-          <input id="planEndDateInput" type="date" required />
+	          <input id="planEndDateInput" type="date" min="2026-07-18" max="2026-12-31" required />
         </label>
-        <label>
-          <span>默认学习强度</span>
-          <select id="intensityInput">
+	        <label>
+	          <span>新日期的默认学习强度</span>
+	          <select id="intensityInput">
             <option value="light">轻量日 · 约 6 小时</option>
             <option value="standard">标准日 · 约 8 小时</option>
             <option value="sprint">冲刺日 · 约 10 小时</option>
-          </select>
-        </label>
+	          </select>
+	          <small class="field-help">只影响以后新生成的日期；现有任务不会被模板覆盖。</small>
+	        </label>
         <div class="settings-rule">
           <i>17—19</i>
           <p><strong>运动时间已锁定</strong><span>所有强度下都会保留，不参与压缩。</span></p>
-        </div>
+	        </div>
+	        <section class="backup-restore-card" aria-labelledby="backupRestoreTitle">
+	          <div><span>RECOVERY</span><strong id="backupRestoreTitle">可恢复备份</strong><small>同步冲突、导入和恢复前会自动留档。</small></div>
+	          <div id="conflictBackups"><p>暂无冲突或导入前备份。</p></div>
+	        </section>
         <div class="cloud-settings-card">
           <div>
             <span>CLOUD ACCOUNT</span>
