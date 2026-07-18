@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="面向 2027 考研数学一、英语一与 408 的本地交互式备考规划台。"
+    />
+    <meta name="theme-color" content="#17364a" />
+    <title>岸线 · 27 考研作战手册</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='29' fill='%23d84b35'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-family='monospace' font-size='23' font-weight='700' fill='%23f8f4ea'%3E27%3C/text%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="paper-grain" aria-hidden="true"></div>
+    <div class="page-progress" id="pageProgress" aria-hidden="true"></div>
+
+    <header class="site-header">
+      <a class="brand" href="#top" aria-label="返回顶部">
+        <span class="brand-seal">27</span>
+        <span class="brand-copy">
+          <strong>岸线</strong>
+          <small>备考作战手册</small>
+        </span>
+      </a>
+      <div class="header-meta">
+        <span class="save-state" id="saveState"><i></i> 已存于本机</span>
+        <span class="header-date" id="headerDate"></span>
+        <button class="icon-button" id="openSettings" type="button" aria-label="打开设置">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5Z" />
+            <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.55V21h-4v-.08A1.7 1.7 0 0 0 8.95 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1.03H3v-4h.08A1.7 1.7 0 0 0 4.6 8.92a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06a1.7 1.7 0 0 0 1.88.34A1.7 1.7 0 0 0 10 3.02V3h4v.08a1.7 1.7 0 0 0 1.05 1.52 1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06a1.7 1.7 0 0 0-.34 1.88A1.7 1.7 0 0 0 20.97 10H21v4h-.08A1.7 1.7 0 0 0 19.4 15Z" />
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <main id="top">
+      <section class="hero shell" aria-labelledby="hero-title">
+        <div class="hero-copy reveal">
+          <p class="kicker"><span>MASTER PLAN</span> / 2027</p>
+          <h1 id="hero-title">把剩下的日子，<br />排成<span>看得见的路。</span></h1>
+          <p class="hero-intro">
+            高数已到第十一章，数据结构基础过完，计组推进到第四章。现在的关键不是再加码，
+            而是让未启动的科目按时入场，让英语从“背单词”变成一条完整得分链。
+          </p>
+          <div class="hero-actions">
+            <button class="button button-primary" id="generateToday" type="button">
+              <span>定位今日安排</span><b>↗</b>
+            </button>
+            <a class="button button-ghost" href="#calendar">打开全程日历</a>
+          </div>
+          <div class="principle-note">
+            <span>本计划的底线</span>
+            <p>17:00–19:00 是每日运动时间，不被补课、不被错题、不被焦虑挤占。</p>
+          </div>
+        </div>
+
+        <aside class="countdown-card reveal delay-1" aria-label="本轮计划倒计时">
+          <div class="countdown-head">
+            <span>离本轮收官</span>
+            <button class="text-button" id="editPlanEnd" type="button">截止日期 · 可修改</button>
+          </div>
+          <div class="countdown-number">
+            <strong id="daysLeft">120</strong>
+            <span>DAYS</span>
+          </div>
+          <div class="countdown-date">
+            <span id="planEndDateText">2026.11.15</span>
+            <i></i>
+            <span id="currentPhaseText">基础补齐期</span>
+          </div>
+          <div class="route-mini" aria-hidden="true">
+            <span class="route-done"></span>
+            <b id="routeMarker"></b>
+          </div>
+          <div class="countdown-foot">
+            <span>今天只解决今天</span>
+            <span id="weekLabel">第 1 周 / 共 18 周</span>
+          </div>
+        </aside>
+      </section>
+
+      <section class="status-strip shell reveal delay-2" aria-label="今日概览">
+        <article>
+          <span>今日学习量</span>
+          <strong id="todayHours">8.8<small>h</small></strong>
+          <em id="intensityLabel">标准日</em>
+        </article>
+        <article>
+          <span>今日完成</span>
+          <strong id="todayDone">0<small>/ 7</small></strong>
+          <em id="completionLabel">先完成第一格</em>
+        </article>
+        <article>
+          <span>当前总进度</span>
+          <strong id="overallProgress">34<small>%</small></strong>
+          <em>基础缺口优先</em>
+        </article>
+        <article class="next-anchor">
+          <span>最近硬节点</span>
+          <strong id="nextAnchorDate">08.31</strong>
+          <em id="nextAnchorText">三科基础完成会师</em>
+        </article>
+      </section>
+
+      <nav class="section-nav shell" aria-label="页面导航">
+        <a class="active" href="#today"><span>01</span>今天</a>
+        <a href="#calendar"><span>02</span>日历</a>
+        <a href="#roadmap"><span>03</span>路线</a>
+        <a href="#week"><span>04</span>周表</a>
+        <a href="#review"><span>05</span>复盘</a>
+      </nav>
+
+      <section class="section shell" id="today" aria-labelledby="today-title">
+        <header class="section-heading">
+          <div>
+            <p class="section-index">01 / TODAY</p>
+            <h2 id="today-title">今日执行面</h2>
+          </div>
+          <div class="heading-side agenda-heading-side">
+            <div class="date-stepper" aria-label="切换执行日期">
+              <button id="previousPlanDate" type="button" aria-label="前一天">←</button>
+              <p id="todayFullDate">2026 年 7 月 18 日</p>
+              <button id="nextPlanDate" type="button" aria-label="后一天">→</button>
+            </div>
+            <button class="button button-small" id="addTaskButton" type="button">＋ 添加任务</button>
+          </div>
+        </header>
+
+        <div class="today-layout">
+          <div class="agenda-panel">
+            <div class="panel-label">
+              <span>时间轴</span>
+              <span>点击任务展开步骤与完成标准 · 圆点用于完成</span>
+            </div>
+            <div class="agenda" id="dailyAgenda"></div>
+            <div class="empty-agenda" id="emptyAgenda" hidden>
+              <p>所选日期还没有任务。</p>
+              <button class="text-link" type="button" data-action="generate">从模板生成今日安排 →</button>
+            </div>
+          </div>
+
+          <aside class="today-sidebar">
+            <article class="focus-card">
+              <div class="focus-topline">
+                <span>FOCUS / 50</span>
+                <i id="timerStatus">待开始</i>
+              </div>
+              <div class="timer-ring" id="timerRing">
+                <div>
+                  <strong id="timerDisplay">50:00</strong>
+                  <span>一次只做一件事</span>
+                </div>
+              </div>
+              <p class="focus-task" id="focusTask">高数第十一章 · 核心题型与错题</p>
+              <div class="timer-actions">
+                <button class="button button-light" id="timerToggle" type="button">开始专注</button>
+                <button class="round-button" id="timerReset" type="button" aria-label="重置计时">↻</button>
+              </div>
+            </article>
+
+            <article class="coach-note">
+              <div class="note-pin"></div>
+              <span>所选日期提示</span>
+              <p id="coachMessage">
+                线代和概率尚未启动，今天开始让线代进入晚间副线；高数仍保留上午黄金时间，避免“没学完所以不开新科”。
+              </p>
+            </article>
+
+            <article class="day-progress-card">
+              <div>
+                <span id="dayProgressLabel">所选日推进率</span>
+                <strong id="dayPercent">0%</strong>
+              </div>
+              <div class="line-progress"><i id="dayProgressBar"></i></div>
+              <p id="dayProgressCopy">完成 3 项后，今天就已经越过及格线。</p>
+            </article>
+          </aside>
+        </div>
+      </section>
+
+      <section class="section calendar-section" id="calendar" aria-labelledby="calendar-title">
+        <div class="shell">
+          <header class="section-heading calendar-heading">
+            <div>
+              <p class="section-index">02 / HORIZON</p>
+              <h2 id="calendar-title">把每天摊开来看</h2>
+            </div>
+            <p class="heading-description dark-description">
+              07.18—11.15 的全部任务都在这条横向跑道上。按住空白处左右拖动；任务卡可拖到另一日期，点击则进入当天执行面。
+            </p>
+          </header>
+
+          <aside class="registration-watch" aria-labelledby="registration-title">
+            <div class="registration-watch-head">
+              <div>
+                <span>APPLICATION WATCH / 待官宣</span>
+                <h3 id="registration-title">报名观察哨</h3>
+              </div>
+              <p>2027 年具体日期尚未发布，下列窗口按上一届官方安排设置为提醒，不代表今年已确定。</p>
+            </div>
+            <div class="registration-milestones">
+              <article><span>9 月中下旬</span><strong>核对招生简章</strong><small>专业目录 · 报考条件 · 报考点</small></article>
+              <article><span>预计 10.10—10.13</span><strong>网上预报名</strong><small>信息校验 · 保存报名号</small></article>
+              <article class="primary-milestone"><span>预计 10.16—10.27</span><strong>网上正式报名</strong><small>填报 · 缴费 · 最终复核</small></article>
+              <article><span>预计 11 月上旬</span><strong>网上确认</strong><small>以省级机构与报考点公告为准</small></article>
+            </div>
+            <div class="registration-source">
+              <span>参考上一届官方节奏生成</span>
+              <a href="https://yz.chsi.com.cn/kyzx/other/202509/20250930/2293435905.html" target="_blank" rel="noreferrer">查看研招网官方公告 ↗</a>
+            </div>
+          </aside>
+
+          <div class="calendar-toolbar">
+            <div class="month-jumps" aria-label="按月份跳转">
+              <button type="button" data-calendar-jump="2026-07-18">7 月</button>
+              <button type="button" data-calendar-jump="2026-08-01">8 月</button>
+              <button type="button" data-calendar-jump="2026-09-01">9 月</button>
+              <button type="button" data-calendar-jump="2026-10-01">10 月</button>
+              <button type="button" data-calendar-jump="2026-11-01">11 月</button>
+            </div>
+            <div class="calendar-actions">
+              <button class="text-link" id="jumpCalendarToday" type="button">回到今天</button>
+              <button class="calendar-arrow" id="calendarPrevious" type="button" aria-label="向前滚动">←</button>
+              <button class="calendar-arrow" id="calendarNext" type="button" aria-label="向后滚动">→</button>
+            </div>
+          </div>
+
+          <div class="calendar-viewport" id="calendarViewport" tabindex="0" aria-label="横向每日计划日历，可左右拖动">
+            <div class="calendar-track" id="calendarTrack"></div>
+          </div>
+          <div class="calendar-footnote">
+            <span><i></i>按住空白横向拖动总览</span>
+            <span><i></i>拖动任务卡可改日期</span>
+            <span><i></i>手机上点击任务，再用“编辑时间”修改日期</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="section section-ink" id="roadmap" aria-labelledby="roadmap-title">
+        <div class="shell">
+          <header class="section-heading light-heading">
+            <div>
+              <p class="section-index">03 / ROUTE</p>
+              <h2 id="roadmap-title">从现在到 11 月 15 日</h2>
+            </div>
+            <p class="heading-description">
+              详细复习只排到 11 月 15 日：先补齐基础，再强化成网，最后用真题检验并完成报名确认。
+            </p>
+          </header>
+
+          <div class="roadmap-grid">
+            <div class="phase-rail" role="tablist" aria-label="备考阶段">
+              <button class="phase-tab active" type="button" role="tab" data-phase="0" aria-selected="true">
+                <span>01</span><strong>补齐基础</strong><small>07.18 — 08.31</small>
+              </button>
+              <button class="phase-tab" type="button" role="tab" data-phase="1" aria-selected="false">
+                <span>02</span><strong>强化成网</strong><small>09.01 — 10.15</small>
+              </button>
+              <button class="phase-tab" type="button" role="tab" data-phase="2" aria-selected="false">
+                <span>03</span><strong>真题与报名</strong><small>10.16 — 11.15</small>
+              </button>
+            </div>
+
+            <div class="phase-content" id="phaseContent" role="tabpanel"></div>
+          </div>
+
+          <div class="subject-progress-block">
+            <header>
+              <div>
+                <span>SUBJECT MAP</span>
+                <h3>当前进度，由你校准</h3>
+              </div>
+              <p>拖动滑块更新完成度，首页总进度与建议会同步变化。</p>
+            </header>
+            <div class="subject-columns" id="subjectProgress"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section shell" id="week" aria-labelledby="week-title">
+        <header class="section-heading">
+          <div>
+            <p class="section-index">04 / WEEK</p>
+            <h2 id="week-title">一周节律表</h2>
+          </div>
+          <div class="intensity-switch" aria-label="学习强度">
+            <button type="button" data-intensity="light">轻量 6h</button>
+            <button class="active" type="button" data-intensity="standard">标准 8h</button>
+            <button type="button" data-intensity="sprint">冲刺 10h</button>
+          </div>
+        </header>
+
+        <div class="week-intro">
+          <p><strong>默认节律：</strong>六天推进，一天复盘；上午数学、下午 408、英语每天见面。运动块不可编辑。</p>
+          <span>表格中的学习内容可直接点击修改</span>
+        </div>
+
+        <div class="week-table-wrap">
+          <div class="week-table" id="weekTable" aria-label="每周学习计划表"></div>
+        </div>
+        <div class="week-legend">
+          <span><i class="math-dot"></i>数学一</span>
+          <span><i class="cs-dot"></i>408</span>
+          <span><i class="english-dot"></i>英语一</span>
+          <span><i class="sport-dot"></i>运动 / 恢复</span>
+          <span><i class="review-dot"></i>复盘</span>
+        </div>
+      </section>
+
+      <section class="section review-section" id="review" aria-labelledby="review-title">
+        <div class="shell">
+          <header class="section-heading">
+            <div>
+              <p class="section-index">05 / REVIEW</p>
+              <h2 id="review-title">把一周合上，再翻篇</h2>
+            </div>
+            <p class="heading-description dark-description">复盘不是审判。只看偏差发生在哪里，然后给下周少留一个坑。</p>
+          </header>
+
+          <div class="review-layout">
+            <article class="week-chart-card">
+              <div class="card-heading">
+                <div>
+                  <span>STUDY HOURS</span>
+                  <h3>近七天有效学习</h3>
+                </div>
+                <strong id="weekHoursTotal">0h</strong>
+              </div>
+              <div class="bar-chart" id="studyChart"></div>
+              <div class="hours-entry">
+                <label for="todayHoursInput">今天实际学习</label>
+                <div><input id="todayHoursInput" type="number" min="0" max="16" step="0.5" value="0" /><span>小时</span></div>
+                <button class="button button-dark" id="saveHours" type="button">记一笔</button>
+              </div>
+            </article>
+
+            <article class="review-form-card">
+              <div class="mood-row">
+                <span>本周体感</span>
+                <div class="mood-options" id="moodOptions" role="radiogroup" aria-label="本周体感">
+                  <button type="button" data-mood="tight" aria-label="吃力">◔</button>
+                  <button class="active" type="button" data-mood="steady" aria-label="稳定">◑</button>
+                  <button type="button" data-mood="great" aria-label="顺畅">●</button>
+                </div>
+              </div>
+              <label class="review-field">
+                <span>这周真正推进了什么？</span>
+                <textarea id="weeklyWins" rows="3" placeholder="例如：高数第十一章例题完成二刷；计组第四章选择题正确率达到 75%……"></textarea>
+              </label>
+              <label class="review-field">
+                <span>下周只修正一个问题</span>
+                <textarea id="weeklyFix" rows="2" placeholder="例如：英语阅读复盘只查词，没有回到定位句。"></textarea>
+              </label>
+              <button class="button button-primary full-button" id="saveReview" type="button">保存本周复盘</button>
+            </article>
+
+            <aside class="checkpoint-card">
+              <span>NEXT CHECKPOINT</span>
+              <strong>11 月 15 日</strong>
+              <p>本轮详细计划收官：三科完成强化或真题检验，报名与网上确认不留遗漏。</p>
+              <ul>
+                <li><i></i>数学完成模块强化并开始成套真题</li>
+                <li><i></i>408 四科完成二轮框架与综合题训练</li>
+                <li><i></i>英语形成阅读、翻译与写作闭环</li>
+                <li><i></i>报名缴费、报名号与网上确认全部核验</li>
+              </ul>
+            </aside>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="shell">
+        <div>
+          <span class="brand-seal small-seal">27</span>
+          <p>计划服务于执行，执行服务于上岸。</p>
+        </div>
+        <p>数据仅保存在当前浏览器 · <button id="exportData" type="button">导出备份</button></p>
+      </div>
+    </footer>
+
+    <dialog class="modal" id="taskDialog">
+      <form method="dialog" id="taskForm">
+        <div class="modal-head">
+          <div><span>PLAN BLOCK</span><h2 id="taskDialogTitle">添加一段日程</h2></div>
+          <button class="modal-close" value="cancel" type="button" aria-label="关闭">×</button>
+        </div>
+        <label>
+          <span>任务名称</span>
+          <input id="taskTitle" name="title" type="text" required placeholder="例如：线代行列式基础题 20 道" />
+        </label>
+        <div class="form-row">
+          <label><span>日期</span><input id="taskDate" name="date" type="date" required /></label>
+          <label><span>科目</span>
+            <select id="taskSubject" name="subject">
+              <option value="math">数学一</option>
+              <option value="cs">408</option>
+              <option value="english">英语一</option>
+              <option value="review">复盘</option>
+              <option value="admin">报名事项</option>
+              <option value="sport">运动</option>
+            </select>
+          </label>
+        </div>
+        <div class="form-row">
+          <label><span>开始</span><input id="taskStart" name="start" type="time" required value="15:00" /></label>
+          <label><span>结束</span><input id="taskEnd" name="end" type="time" required value="16:00" /></label>
+        </div>
+        <p class="form-hint" id="taskFormHint">17:00–19:00 已锁定为运动时间，学习任务不能与它重叠。</p>
+        <button class="button button-primary full-button" id="taskSubmitButton" value="default" type="submit">加入时间轴</button>
+      </form>
+    </dialog>
+
+    <dialog class="modal settings-modal" id="settingsDialog">
+      <form method="dialog" id="settingsForm">
+        <div class="modal-head">
+          <div><span>SETTINGS</span><h2>调整你的计划</h2></div>
+          <button class="modal-close" value="cancel" type="button" aria-label="关闭">×</button>
+        </div>
+        <label>
+          <span>本轮详细计划截止日</span>
+          <input id="planEndDateInput" type="date" required />
+        </label>
+        <label>
+          <span>默认学习强度</span>
+          <select id="intensityInput">
+            <option value="light">轻量日 · 约 6 小时</option>
+            <option value="standard">标准日 · 约 8 小时</option>
+            <option value="sprint">冲刺日 · 约 10 小时</option>
+          </select>
+        </label>
+        <div class="settings-rule">
+          <i>17—19</i>
+          <p><strong>运动时间已锁定</strong><span>所有强度下都会保留，不参与压缩。</span></p>
+        </div>
+        <button class="button button-primary full-button" value="default" type="submit">保存设置</button>
+      </form>
+    </dialog>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="app.js"></script>
+  </body>
+</html>
