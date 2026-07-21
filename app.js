@@ -1,12 +1,16 @@
 (() => {
   "use strict";
 
+  const PLAN_DATA = window.KaoyanPlanData;
+  if (!PLAN_DATA) throw new Error("逐日计划数据未加载");
+
   const STORAGE_KEY = "shoreline-kaoyan-27-v2";
   const LEGACY_STORAGE_KEY = "shoreline-kaoyan-27-v1";
-  const SCHEMA_VERSION = 3;
-  const PLAN_START = "2026-07-18";
-  const DEFAULT_PLAN_END = "2026-11-15";
-  const MAX_PLAN_END = "2026-12-31";
+  const SCHEMA_VERSION = 4;
+  const PLAN_CONTENT_VERSION = PLAN_DATA.CONTENT_VERSION;
+  const PLAN_START = PLAN_DATA.PLAN_START;
+  const DEFAULT_PLAN_END = PLAN_DATA.DETAILED_PLAN_END;
+  const MAX_PLAN_END = PLAN_DATA.MAX_PLAN_END;
   const FOCUS_SECONDS = 50 * 60;
   const VALID_SUBJECTS = new Set(["math", "english", "cs", "sport", "review", "admin"]);
   const VALID_INTENSITIES = new Set(["light", "standard", "sprint"]);
@@ -32,23 +36,23 @@
       name: "补齐基础",
       date: "07.18 — 08.31",
       headline: "先让所有科目入场，再谈速度",
-      description: "45 天内完成高数收尾、线代与概率启动，并让 408 的计组、操作系统和计网接续推进。每天留可验证的产出，不用“听完了”代替“会做了”。",
+      description: "45 天内完成高数剩余内容、线代首轮与概率主体，并让 408 的计组、操作系统和计网接续推进。每天留可验证的产出，不用“听完了”代替“会做了”。",
       subjects: [
         {
           type: "math", index: "M", title: "数学一 · 三线会师",
           items: [
-            "07.18–07.27：高数第十一章及后续内容收尾，章末题与错题同步回做",
-            "07.28–08.18：线代首轮，按行列式、矩阵、方程组、特征值推进",
-            "08.19–08.31：概率首轮启动；高数与线代每周各回炉 2 次",
-            "完成标准：基础题能独立落笔，章节框架能闭卷说出"
+            "07.18–07.26：高数第十一、十二章剩余内容收口并完成闭卷测验",
+            "07.27–08.12：线代首轮，按行列式、矩阵、方程组、特征值推进",
+            "08.13–08.31：概率首轮推进到参数估计，并开始三模块混合检测",
+            "完成标准：基础题正确率 ≥ 80%，章节框架能闭卷说出"
           ]
         },
         {
           type: "english", index: "E", title: "英语一 · 从词到篇",
           items: [
-            "单词每天 45–60 分钟，新词与间隔复习分开记录",
-            "7 月每天拆 2 个长难句，只抓主干、从句与修饰关系",
-            "8 月开始早年阅读精读：做题、定位、句子、选项四步闭环",
+            "词汇每天明确新词、到期词和抽测正确率，不用浏览次数代替掌握",
+            "7 月用 2005—2006 真题交替训练长难句、阅读、翻译与新题型",
+            "8 月按年份推进 2007—2011 真题：限时、定位、选项归因四步闭环",
             "每篇只沉淀 5–8 个高频词和一个主要错因"
           ]
         },
@@ -107,7 +111,7 @@
         {
           type: "math", index: "M", title: "数学一 · 真题检验",
           items: [
-            "近年真题按模块到成套逐步过渡，每周 2 套左右",
+            "先用 2010—2017 真题从模块过渡到整卷，每周约 2 套，保留更新年份",
             "次日订正并回做同类题，避免只看解析",
             "固定选择填空与大题时间边界，训练果断跳题",
             "11 月 15 日前形成可快速翻阅的错题压缩版"
@@ -125,7 +129,7 @@
         {
           type: "cs", index: "4", title: "408 · 真题闭环",
           items: [
-            "真题成套训练并记录四科失分结构",
+            "先用 2010—2017 真题成套训练并记录四科失分结构",
             "综合题写完整步骤，尤其是算法、地址计算与 PV 题",
             "薄弱点回到专题补 10–20 题，不整章重学",
             "报名日适当降学习量，先确保信息、缴费与材料无误"
@@ -181,19 +185,11 @@
   today.setHours(0, 0, 0, 0);
   const todayISO = toISODate(today);
 
-  const registrationEvents = {
-    "2026-09-20": { start: "12:00", end: "12:30", title: "核对目标院校招生简章与专业目录" },
-    "2026-09-28": { start: "12:00", end: "12:30", title: "确认报考条件、考试科目与报考点" },
-    "2026-10-10": { start: "12:00", end: "12:40", title: "预计预报名窗口：填写并校验信息" },
-    "2026-10-16": { start: "12:00", end: "12:40", title: "预计正式报名开启：填报并缴费" },
-    "2026-10-25": { start: "12:00", end: "12:25", title: "报名信息最终复核并保存报名号" },
-    "2026-11-01": { start: "12:00", end: "12:30", title: "查看省级机构与报考点网上确认公告" },
-    "2026-11-03": { start: "12:00", end: "13:00", title: "预计网上确认：上传材料与证件照" },
-    "2026-11-05": { start: "12:00", end: "12:30", title: "复核网上确认结果与补充材料状态" }
-  };
+  const registrationEvents = PLAN_DATA.registrationEvents;
 
   const defaultState = {
     schemaVersion: SCHEMA_VERSION,
+    planContentVersion: PLAN_CONTENT_VERSION,
     planEndDate: DEFAULT_PLAN_END,
     intensity: "standard",
     progress: {
@@ -254,6 +250,9 @@
       const saved = JSON.parse(currentRaw || legacyRaw);
       if (!saved || typeof saved !== "object") return structuredClone(defaultState);
       const migratingLegacy = !currentRaw && Boolean(legacyRaw);
+      if (Number(saved.planContentVersion || 0) < PLAN_CONTENT_VERSION) {
+        preserveStateDataBackup(saved, "逐日计划升级前自动备份");
+      }
       return normalizeState(saved, migratingLegacy);
     } catch {
       return structuredClone(defaultState);
@@ -272,7 +271,7 @@
       clampNumber(source.progress?.[key], 0, 100, defaultState.progress[key])
     ]));
     const seenTaskIds = new Set();
-    const tasks = (Array.isArray(source.tasks) ? source.tasks : [])
+    let tasks = (Array.isArray(source.tasks) ? source.tasks : [])
       .slice(0, 5000)
       .map(normalizeTask)
       .filter(Boolean)
@@ -282,10 +281,15 @@
         seenTaskIds.add(task.id);
         return true;
       });
-    const generatedDates = migratingLegacy ? [] : [...new Set(
+    let generatedDates = migratingLegacy ? [] : [...new Set(
       (Array.isArray(source.generatedDates) ? source.generatedDates : [])
         .filter(dateValue => isValidISODate(dateValue) && dateValue >= PLAN_START && dateValue <= MAX_PLAN_END)
     )];
+    const requiresPlanRefresh = Number(source.planContentVersion || 0) < PLAN_CONTENT_VERSION;
+    if (requiresPlanRefresh) {
+      tasks = tasks.filter(task => !task.generated || task.customized);
+      generatedDates = [];
+    }
     const planIntensityByDate = {};
     if (!migratingLegacy && isPlainObject(source.planIntensityByDate)) {
       Object.entries(source.planIntensityByDate).forEach(([dateValue, intensity]) => {
@@ -309,6 +313,7 @@
     }
     return {
       schemaVersion: SCHEMA_VERSION,
+      planContentVersion: PLAN_CONTENT_VERSION,
       planEndDate: migratingLegacy ? DEFAULT_PLAN_END : planEndDate,
       intensity: VALID_INTENSITIES.has(source.intensity) ? source.intensity : defaultState.intensity,
       progress,
@@ -361,8 +366,22 @@
     const stepDone = (Array.isArray(rawTask.stepDone) ? rawTask.stepDone : [])
       .slice(0, steps.length || 12)
       .map(Boolean);
+    const generated = Boolean(rawTask.generated);
+    const contentVersion = clampNumber(rawTask.contentVersion, 0, PLAN_CONTENT_VERSION, 0);
+    const customized = !generated
+      || Boolean(rawTask.customized)
+      || Boolean(rawTask.done)
+      || Boolean(safeText(rawTask.note, 2000))
+      || stepDone.some(Boolean)
+      || (contentVersion === 0 && Boolean(
+        safeText(rawTask.objective, 800)
+        || safeText(rawTask.doneWhen, 800)
+        || steps.length
+      ));
     return {
       id: safeText(rawTask.id, 120) || uid(),
+      templateKey: safeText(rawTask.templateKey, 180),
+      contentVersion,
       date,
       start,
       end,
@@ -370,7 +389,8 @@
       title,
       done: Boolean(rawTask.done),
       fixed: subject === "sport" && Boolean(rawTask.fixed),
-      generated: Boolean(rawTask.generated),
+      generated,
+      customized,
       registration: subject === "admin" && Boolean(rawTask.registration),
       objective: safeText(rawTask.objective, 800),
       doneWhen: safeText(rawTask.doneWhen, 800),
@@ -405,6 +425,9 @@
   function replaceStateFromCloud(nextState) {
     if (!nextState || typeof nextState !== "object" || Array.isArray(nextState)) {
       throw new TypeError("云端计划数据格式无效");
+    }
+    if (Number(nextState.planContentVersion || 0) < PLAN_CONTENT_VERSION) {
+      preserveStateDataBackup(nextState, "云端逐日计划升级前自动备份");
     }
     state = normalizeState(nextState);
     selectedDateISO = clampPlanDate(selectedDateISO);
@@ -494,128 +517,43 @@
     return Math.max(0, timeToMinutes(task.end) - timeToMinutes(task.start));
   }
 
+  function learningProgress(tasks) {
+    const learningTasks = tasks.filter(task => ["math", "english", "cs"].includes(task.subject));
+    const totalMinutes = learningTasks.reduce((sum, task) => sum + taskDuration(task), 0);
+    const doneTasks = learningTasks.filter(task => task.done);
+    const doneMinutes = doneTasks.reduce((sum, task) => sum + taskDuration(task), 0);
+    return {
+      totalCount: learningTasks.length,
+      doneCount: doneTasks.length,
+      totalMinutes,
+      doneMinutes,
+      percent: totalMinutes ? Math.round((doneMinutes / totalMinutes) * 100) : 0
+    };
+  }
+
+  function formatMinuteAmount(value) {
+    const minutes = Math.max(0, Math.ceil(value));
+    const hours = Math.floor(minutes / 60);
+    const remainder = minutes % 60;
+    return `${hours ? `${hours} 小时` : ""}${hours && remainder ? " " : ""}${remainder ? `${remainder} 分钟` : ""}` || "0 分钟";
+  }
+
   function overlaps(startA, endA, startB, endB) {
     return Math.max(timeToMinutes(startA), timeToMinutes(startB)) < Math.min(timeToMinutes(endA), timeToMinutes(endB));
   }
 
-  function topicsForDate(dateValue) {
-    const date = parseLocalDate(dateValue);
-    const weekday = date.getDay();
-    const monthDay = (date.getMonth() + 1) * 100 + date.getDate();
-    const ordinal = Math.max(0, Math.floor((date - parseLocalDate(PLAN_START)) / 86400000));
-
-    if (weekday === 0) {
-      return {
-        math: "数学周错题回做 + 下周第一章预热",
-        cs: "408 本周框架闭卷回忆 + 漏洞定位",
-        english: "真题词汇回看 + 轻阅读",
-        eveningA: "本周未完成项补缺",
-        eveningB: "整理错题标签与下周入口"
-      };
-    }
-
-    if (monthDay <= 831) {
-      const math = monthDay <= 727
-        ? ["高数第十一章：知识框架与例题", "高数第十一章：核心题型训练", "高数后续内容：基础例题", "高数章节错题与章测"][ordinal % 4]
-        : monthDay <= 818
-          ? ["线代：行列式与矩阵", "线代：秩与线性方程组", "线代：向量组与线性相关", "线代：特征值与二次型"][ordinal % 4]
-          : ["概率：随机事件与概率", "概率：随机变量与分布", "概率：多维随机变量", "概率：数字特征基础题"][ordinal % 4];
-      const cs = monthDay <= 805
-        ? ["计组第 4 章：概念与选择题", "计组后续章节：新课与框架", "计组计算题专项", "数据结构算法手写 1 题"][ordinal % 4]
-        : monthDay <= 820
-          ? ["操作系统：进程与线程", "操作系统：内存管理", "操作系统：文件与 I/O", "数据结构薄弱章节回炉"][ordinal % 4]
-          : ["计网：体系结构与物理层", "计网：数据链路层", "计网：网络层", "数据结构算法手写 1 题"][ordinal % 4];
-      return {
-        math,
-        cs,
-        english: monthDay <= 731 ? "长难句 2 句：主干到修饰" : "早年阅读精读 1 篇：定位到选项",
-        eveningA: monthDay <= 818 ? "线代基础题 + 错因标记" : "概率基础题 + 高数回炉",
-        eveningB: "数据结构 / 计组 / OS 当日题组"
-      };
-    }
-
-    if (monthDay <= 1015) {
-      const mathAreas = ["高数强化：极限与微分", "高数强化：积分与级数", "线代强化：方程组与特征值", "概率强化：分布与数字特征"];
-      const csAreas = monthDay <= 910
-        ? ["计网首轮：传输层与应用层", "计网首轮：网络层综合", "数据结构算法手写", "计组 / OS 旧章回炉"]
-        : ["408 二轮：数据结构专题", "408 二轮：计组计算专题", "408 二轮：OS 地址与 PV", "408 二轮：计网协议流程"];
-      return {
-        math: mathAreas[ordinal % mathAreas.length],
-        cs: csAreas[ordinal % csAreas.length],
-        english: ["真题阅读精读 1 篇", "阅读限时 1 篇 + 选项归因", "翻译拆句 + 真题词汇", "新题型训练 + 阅读复盘"][ordinal % 4],
-        eveningA: "数学专题题组 + 隔日错题回做",
-        eveningB: "408 综合题 + 闭卷框架"
-      };
-    }
-
-    return {
-      math: ["数学真题：选择填空限时", "数学真题：高数大题模块", "数学真题：线代 / 概率模块", "数学成套训练 + 订正"][ordinal % 4],
-      cs: ["408 真题：选择题限时", "408 真题：数据结构 / 计组综合", "408 真题：OS / 计网综合", "408 成套训练 + 失分统计"][ordinal % 4],
-      english: ["英语真题阅读限时 2 篇", "英语阅读精读 + 错因归类", "翻译 / 新题型专项", "作文结构与表达练习"][ordinal % 4],
-      eveningA: "数学真题订正 + 同类题回做",
-      eveningB: "408 真题订正 + 框架补洞"
-    };
-  }
-
   function dailyTemplate(intensity = state.intensity, dateValue = todayISO) {
-    const planDate = parseLocalDate(dateValue);
-    const weekday = planDate.getDay();
-    const topics = topicsForDate(dateValue);
-    const effectiveIntensity = weekday === 0 ? "light" : intensity;
-
-    const templates = {
-      light: [
-        ["09:00", "10:45", "math", topics.math],
-        ["11:00", "11:40", "english", "单词：新词 + 间隔复习"],
-        ["14:00", "15:40", "cs", topics.cs],
-        ["15:50", "16:30", "english", topics.english],
-        ["17:00", "19:00", "sport", "运动 · 拉伸 · 洗漱"],
-        ["19:45", "20:45", "math", topics.eveningA],
-        ["21:00", "21:20", "review", "三行复盘 + 明日第一任务"]
-      ],
-      standard: [
-        ["08:00", "10:15", "math", topics.math],
-        ["10:30", "11:15", "english", "单词：新词 + 间隔复习"],
-        ["13:30", "15:15", "cs", topics.cs],
-        ["15:30", "16:30", "english", topics.english],
-        ["17:00", "19:00", "sport", "运动 · 拉伸 · 洗漱"],
-        ["19:30", "20:45", "math", topics.eveningA],
-        ["21:00", "21:45", "cs", topics.eveningB],
-        ["21:50", "22:05", "review", "三行复盘 + 明日第一任务"]
-      ],
-      sprint: [
-        ["07:40", "10:20", "math", topics.math],
-        ["10:35", "11:35", "english", "单词复习 + 长难句 2 句"],
-        ["13:00", "15:30", "cs", topics.cs],
-        ["15:40", "16:40", "english", topics.english],
-        ["17:00", "19:00", "sport", "运动 · 拉伸 · 洗漱"],
-        ["19:30", "21:10", "math", topics.eveningA],
-        ["21:20", "22:20", "cs", topics.eveningB],
-        ["22:20", "22:30", "review", "关账：记录错因与明日入口"]
-      ]
-    };
-
-    const tasks = templates[effectiveIntensity].map(([start, end, subject, title]) => ({
+    const effectiveIntensity = parseLocalDate(dateValue).getDay() === 0 ? "light" : intensity;
+    return PLAN_DATA.buildDay(dateValue, effectiveIntensity).map(template => ({
+      ...template,
       id: uid(),
-      date: dateValue,
-      start,
-      end,
-      subject,
-      title,
       done: false,
-      fixed: subject === "sport",
-      generated: true
+      fixed: Boolean(template.fixed),
+      generated: true,
+      customized: false,
+      stepDone: [],
+      note: ""
     }));
-
-    const registration = registrationEvents[dateValue];
-    if (registration) {
-      tasks.push({
-        id: uid(), date: dateValue, start: registration.start, end: registration.end,
-        subject: "admin", title: registration.title, done: false, fixed: false,
-        generated: true, registration: true
-      });
-    }
-    return tasks;
   }
 
   function ensureFullPlan() {
@@ -623,8 +561,18 @@
     eachPlanDate().forEach(dateValue => {
       if (state.generatedDates.includes(dateValue)) return;
       const date = parseLocalDate(dateValue);
-      const dayIntensity = date.getDay() === 0 ? "light" : state.intensity;
-      state.tasks.push(...dailyTemplate(dayIntensity, dateValue));
+      const dayIntensity = date.getDay() === 0
+        ? "light"
+        : state.planIntensityByDate[dateValue] || state.intensity;
+      const existing = state.tasks.filter(task => task.date === dateValue);
+      dailyTemplate(dayIntensity, dateValue).forEach(candidate => {
+        const collision = existing.some(task => task.templateKey && task.templateKey === candidate.templateKey)
+          || existing.some(task => task.start === candidate.start && task.subject === candidate.subject);
+        if (!collision) {
+          state.tasks.push(candidate);
+          existing.push(candidate);
+        }
+      });
       state.generatedDates.push(dateValue);
       state.planIntensityByDate[dateValue] = dayIntensity;
       changed = true;
@@ -815,8 +763,7 @@
       const date = parseLocalDate(dateValue);
       const tasks = state.tasks.filter(task => task.date === dateValue).sort((a, b) => a.start.localeCompare(b.start));
       const studyMinutes = tasks.filter(task => !["sport", "admin"].includes(task.subject)).reduce((sum, task) => sum + taskDuration(task), 0);
-      const done = tasks.filter(task => task.done).length;
-      const progress = tasks.length ? Math.round((done / tasks.length) * 100) : 0;
+      const progress = learningProgress(tasks);
       const registrationDay = tasks.some(task => task.subject === "admin");
       return `
         <article class="calendar-day ${dateValue === todayISO ? "is-today" : ""} ${dateValue === selectedDateISO ? "is-selected" : ""} ${isRegistrationWindow(dateValue) ? "registration-window" : ""}" data-calendar-date="${dateValue}">
@@ -835,7 +782,7 @@
               `;
             }).join("")}
           </div>
-          <footer><span>${done}/${tasks.length}</span><i><b style="width:${progress}%"></b></i><em>${progress}%</em></footer>
+          <footer><span>${progress.doneCount}/${progress.totalCount}</span><i><b style="width:${progress.percent}%"></b></i><em>${progress.percent}%</em></footer>
         </article>
       `;
     }).join("");
@@ -1057,48 +1004,46 @@
     const studyMinutes = todayTasks
       .filter(task => !["sport", "admin"].includes(task.subject))
       .reduce((sum, task) => sum + taskDuration(task), 0);
-    const todayDone = todayTasks.filter(task => task.done).length;
-    const todayPercent = todayTasks.length ? Math.round((todayDone / todayTasks.length) * 100) : 0;
-    const selectedDone = selectedTasks.filter(task => task.done).length;
-    const selectedPercent = selectedTasks.length ? Math.round((selectedDone / selectedTasks.length) * 100) : 0;
+    const todayProgress = learningProgress(todayTasks);
+    const selectedProgress = learningProgress(selectedTasks);
 
     $("#todayHours").innerHTML = `${Number((studyMinutes / 60).toFixed(1))}<small>h</small>`;
     const todayPlanIntensity = state.planIntensityByDate[todayISO] || state.intensity;
     $("#intensityLabel").textContent = intensityNames[todayPlanIntensity];
-    $("#todayDone").innerHTML = `${todayDone}<small>/ ${todayTasks.length}</small>`;
-    $("#dayPercent").textContent = `${selectedPercent}%`;
-    $("#dayProgressBar").style.width = `${selectedPercent}%`;
+    $("#todayDone").innerHTML = `${todayProgress.doneCount}<small>/ ${todayProgress.totalCount}</small>`;
+    $("#dayPercent").textContent = `${selectedProgress.percent}%`;
+    $("#dayProgressBar").style.width = `${selectedProgress.percent}%`;
     $("#dayProgressLabel").textContent = selectedDateISO === todayISO ? "今日推进率" : "所选日推进率";
     $("#overallProgress").innerHTML = `${currentOverallProgress()}<small>%</small>`;
 
-    const completionLabel = todayPercent === 100
+    const completionLabel = todayProgress.percent === 100
       ? "今日已收口"
-      : todayPercent >= 60
+      : todayProgress.percent >= 60
         ? "主线已经守住"
-        : todayDone > 0
+        : todayProgress.doneCount > 0
           ? "继续完成下一格"
           : "先完成第一格";
     $("#completionLabel").textContent = completionLabel;
-    $("#dayProgressCopy").textContent = selectedPercent === 100
+    const remainingToPass = Math.max(0, selectedProgress.totalMinutes * 0.6 - selectedProgress.doneMinutes);
+    $("#dayProgressCopy").textContent = selectedProgress.percent === 100
       ? "这一天已经完整关账，可以放心翻篇。"
-      : `再完成 ${Math.max(0, Math.ceil(selectedTasks.length * 0.6) - selectedDone)} 项，这一天就越过 60% 及格线。`;
+      : selectedProgress.percent >= 60
+        ? "学业主线已越过 60%，继续按数学、408、英语的优先级逐项收口。"
+        : `再完成约 ${formatMinuteAmount(remainingToPass)}的学业任务，主线推进率就会越过 60%。`;
     updateCoachMessage();
   }
 
   function updateCoachMessage() {
     let message;
+    const dayPlan = PLAN_DATA.resolvePlan(selectedDateISO);
     if (registrationEvents[selectedDateISO]) {
-      message = "这是报名提醒日。2027 官方日期尚未发布，请只从研招网、省级考试机构和目标院校官网核验；报名、缴费、报名号与确认结果都要截图留存。";
-    } else if (state.progress.xiandai < 10) {
-      message = "线代和概率尚未启动，今天开始让线代进入晚间副线；高数仍保留上午黄金时间，避免“没学完所以不开新科”。";
-    } else if (state.progress.gailv < 10) {
-      message = "线代已经入场。高数与线代保持回炉，同时给概率安排第一节启动课；新科目的第一周只求连续，不求速度。";
-    } else if (state.progress.os < 10 || state.progress.network < 10) {
-      message = "数学三模块已经会师。408 还存在未启动模块，把计组首轮按节点收口，随后依次启动操作系统与计网。";
-    } else if (state.progress.reading < 25) {
-      message = "基础科目已全部入场，当前最明显的短板是英语阅读。每天至少完成一篇“做题—定位—选项”闭环。";
+      message = "这是报名提醒日：先核验真实官方窗口，再按卡片清单操作。报名、缴费、报名号与确认结果都要截图留存；行政任务未收口前不追加学习量。";
+    } else if (dayPlan?.kind === "recovery") {
+      message = "今天不推进新课。完成数学与 408 周检后，只允许补一个 45 分钟内能收口的断点，其余问题写入下周，不把周日变成滚动欠账日。";
+    } else if (dayPlan?.kind === "study") {
+      message = `今天只守三条主线：数学“${dayPlan.math.scope}”，408“${dayPlan.cs.scope}”，英语“${dayPlan.english.scope}”。先达到卡片完成标准，再决定是否加量。`;
     } else {
-      message = "各模块都已经启动。现在少看进度条，多看正确率、限时表现和重复错因，让知识真正变成分数。";
+      message = "按任务卡的完成标准执行；少看进度条，多看正确率、限时表现和重复错因。";
     }
     $("#coachMessage").textContent = message;
   }
@@ -1135,6 +1080,7 @@
 
       if (event.target.closest('[data-action="toggle"]')) {
         task.done = !task.done;
+        task.customized = true;
         saveState();
         renderAgenda();
         renderCalendar(true);
@@ -1178,6 +1124,7 @@
       if (!task) return;
       task.stepDone = Array.isArray(task.stepDone) ? task.stepDone : [];
       task.stepDone[Number(checkbox.dataset.taskStep)] = checkbox.checked;
+      task.customized = true;
       saveState();
     });
 
@@ -1188,6 +1135,7 @@
       const task = state.tasks.find(entry => entry.id === item.dataset.taskId);
       if (!task) return;
       task.note = note.value;
+      task.customized = true;
       saveState();
     });
 
@@ -1292,6 +1240,7 @@
       if (!task) return;
       const oldDate = task.date;
       task.date = day.dataset.calendarDate;
+      task.customized = true;
       selectedDateISO = task.date;
       weekViewStartISO = startOfWeekISO(selectedDateISO);
       expandedTaskId = task.id;
@@ -1357,6 +1306,7 @@
       if (!task) return;
       if (action === "toggle") {
         task.done = !task.done;
+        task.customized = true;
         saveState();
         renderAgenda();
         renderCalendar(true);
@@ -1493,11 +1443,11 @@
       const previousSteps = taskGuidance(existingTask).steps;
       const previousDone = Array.isArray(existingTask.stepDone) ? existingTask.stepDone : [];
       const stepDone = steps.map((step, index) => previousSteps[index] === step && Boolean(previousDone[index]));
-      Object.assign(existingTask, { date, start, end, subject, title, objective, doneWhen, steps, stepDone, note });
+      Object.assign(existingTask, { date, start, end, subject, title, objective, doneWhen, steps, stepDone, note, customized: true });
     } else {
       state.tasks.push({
         id: uid(), date, start, end, subject, title,
-        done: false, fixed: false, generated: false,
+        done: false, fixed: false, generated: false, customized: true,
         objective, doneWhen, steps, stepDone: steps.map(() => false), note
       });
     }
@@ -1662,8 +1612,12 @@
   }
 
   function preserveCurrentStateBackup(reason) {
+    return preserveStateDataBackup(state, reason);
+  }
+
+  function preserveStateDataBackup(data, reason) {
     const key = `${CONFLICT_BACKUP_PREFIX}${Date.now()}`;
-    localStorage.setItem(key, JSON.stringify({ savedAt: new Date().toISOString(), reason, data: state }));
+    localStorage.setItem(key, JSON.stringify({ savedAt: new Date().toISOString(), reason, data }));
     return key;
   }
 
